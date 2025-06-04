@@ -1,8 +1,6 @@
-// src/pages/index.tsx
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
-
 
 interface TelegramUser {
   id: number;
@@ -27,6 +25,7 @@ export default function HomePage() {
       if (telegramUser) {
         setUser(telegramUser);
 
+        // Добавление или обновление пользователя
         supabase
           .from('users')
           .upsert(
@@ -38,8 +37,14 @@ export default function HomePage() {
             }],
             { onConflict: 'telegram_id' }
           )
-          .then(({ error }) => {
-            if (error) console.error('Ошибка при сохранении пользователя:', error);
+          .select('id') // ⬅ вернёт uuid после вставки
+          .single()
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Ошибка при сохранении пользователя:', error);
+            } else {
+              console.log('UUID пользователя в базе:', data?.id);
+            }
           });
       }
     } else {
