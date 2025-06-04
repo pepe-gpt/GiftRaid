@@ -20,12 +20,13 @@ export default function BattlePage() {
 
   const fetchBoss = async () => {
     const { data, error } = await supabase
-      .from('bosses')
-      .select('*')
-      .eq('is_active', true)
-      .order('starts_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
+  .from('bosses')
+  .select('*')
+  .eq('is_active', true)
+  .order('starts_at', { ascending: true })
+  .limit(1)
+  .maybeSingle();
+
 
     if (data) setBoss(data);
     setLoading(false);
