@@ -1,6 +1,7 @@
 // src/pages/index.tsx
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { useRouter } from 'next/router';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,7 +17,7 @@ interface TelegramUser {
 
 export default function HomePage() {
   const [user, setUser] = useState<TelegramUser | null>(null);
-  const [uuid, setUuid] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
@@ -30,7 +31,6 @@ export default function HomePage() {
       if (telegramUser) {
         setUser(telegramUser);
 
-        // Вставляем или обновляем пользователя по telegram_id
         supabase
           .from('users')
           .upsert(
@@ -42,24 +42,8 @@ export default function HomePage() {
             }],
             { onConflict: 'telegram_id' }
           )
-          .then(async ({ error }) => {
-            if (error) {
-              console.error('Ошибка при сохранении пользователя:', error);
-            } else {
-              // Получаем UUID по telegram_id
-              const { data, error: fetchError } = await supabase
-                .from('users')
-                .select('id')
-                .eq('telegram_id', telegramUser.id)
-                .single();
-
-              if (fetchError) {
-                console.error('Ошибка при получении UUID:', fetchError);
-              } else if (data?.id) {
-                setUuid(data.id);
-                localStorage.setItem('user_uuid', data.id); // можно использовать потом
-              }
-            }
+          .then(({ error }) => {
+            if (error) console.error('Ошибка при сохранении пользователя:', error);
           });
       }
     } else {
@@ -82,6 +66,22 @@ export default function HomePage() {
           alt="avatar"
         />
       )}
+
+      <button
+        onClick={() => router.push('/battle')}
+        style={{
+          marginTop: '20px',
+          padding: '10px 20px',
+          fontSize: '16px',
+          backgroundColor: '#4CAF50',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+        }}
+      >
+        Перейти к бою с боссом
+      </button>
     </div>
   );
 }
