@@ -8,6 +8,7 @@ interface Boss {
   hp_max: number;
   hp_current: number;
   image_url?: string;
+  scenario_id: string;
 }
 
 interface TelegramUser {
@@ -87,17 +88,20 @@ export default function BattlePage() {
     setQuestionOpen(false);
     setResultText('Определяем результат...');
 
-    const response = await fetch('https://tyvjdugqmlzshbamrrxq.functions.supabase.co/smooth-handler', {
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token;
+
+    const response = await fetch('https://tyvjdugqmlzshbamrrxq.supabase.co/functions/v1/smooth-handler', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         user_id: user.id,
         boss_id: boss.id,
-        scenario_id: 1,
-        option_index: choice - 1,
+        scenario_id: boss.scenario_id,
+        option_index: choice,
       }),
     });
 
@@ -106,8 +110,8 @@ export default function BattlePage() {
       return;
     }
 
-    const data = await response.json();
-    setResultText(data.message);
+    const result = await response.json();
+    setResultText(result.message);
   };
 
   if (loading || !boss || !user) return <div>Загрузка...</div>;
@@ -129,9 +133,9 @@ export default function BattlePage() {
       {questionOpen && (
         <div style={{ marginTop: 20 }}>
           <p>Торт взвыл и поднял кремовый щит! Что ты сделаешь?</p>
-          <button onClick={() => handleChoice(1)}>🍴 Воткнуть вилку сбоку</button><br />
-          <button onClick={() => handleChoice(2)}>🧁 Засыпать пудрой</button><br />
-          <button onClick={() => handleChoice(3)}>🕺 Танец взбитых сливок</button>
+          <button onClick={() => handleChoice(0)}>🍴 Воткнуть вилку сбоку</button><br />
+          <button onClick={() => handleChoice(1)}>🧁 Засыпать пудрой</button><br />
+          <button onClick={() => handleChoice(2)}>🕺 Танец взбитых сливок</button>
         </div>
       )}
 
@@ -145,3 +149,4 @@ export default function BattlePage() {
     </div>
   );
 }
+
