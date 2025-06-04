@@ -16,6 +16,7 @@ interface TelegramUser {
 
 export default function HomePage() {
   const [user, setUser] = useState<TelegramUser | null>(null);
+  const [uuid, setUuid] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
@@ -29,6 +30,7 @@ export default function HomePage() {
       if (telegramUser) {
         setUser(telegramUser);
 
+        // Вставляем или обновляем пользователя по telegram_id
         supabase
           .from('users')
           .upsert(
@@ -40,8 +42,24 @@ export default function HomePage() {
             }],
             { onConflict: 'telegram_id' }
           )
-          .then(({ error }) => {
-            if (error) console.error('Ошибка при сохранении пользователя:', error);
+          .then(async ({ error }) => {
+            if (error) {
+              console.error('Ошибка при сохранении пользователя:', error);
+            } else {
+              // Получаем UUID по telegram_id
+              const { data, error: fetchError } = await supabase
+                .from('users')
+                .select('id')
+                .eq('telegram_id', telegramUser.id)
+                .single();
+
+              if (fetchError) {
+                console.error('Ошибка при получении UUID:', fetchError);
+              } else if (data?.id) {
+                setUuid(data.id);
+                localStorage.setItem('user_uuid', data.id); // можно использовать потом
+              }
+            }
           });
       }
     } else {
@@ -64,23 +82,6 @@ export default function HomePage() {
           alt="avatar"
         />
       )}
-
-      {/* КНОПКА ПЕРЕХОДА НА БИТВУ */}
-      <a
-        href="/battle"
-        style={{
-          display: 'inline-block',
-          marginTop: 20,
-          padding: '10px 20px',
-          backgroundColor: '#0088cc',
-          color: 'white',
-          borderRadius: '8px',
-          textDecoration: 'none',
-          fontWeight: 'bold'
-        }}
-      >
-        Перейти к битве →
-      </a>
     </div>
   );
 }

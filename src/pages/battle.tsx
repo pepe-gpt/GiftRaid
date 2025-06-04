@@ -1,8 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
-
-
 interface Boss {
   id: string;
   name: string;
@@ -15,30 +13,30 @@ export default function BattlePage() {
   const [boss, setBoss] = useState<Boss | null>(null);
   const [loading, setLoading] = useState(true);
   const [clickCooldown, setClickCooldown] = useState(false);
-  const [telegramUserId, setTelegramUserId] = useState<string | null>(null);
+  const [userUuid, setUserUuid] = useState<string | null>(null);
   const [effect, setEffect] = useState<'crit' | 'miss' | 'normal' | null>(null);
 
   const fetchBoss = async () => {
-  const { data, error } = await supabase
-    .from('bosses')
-    .select('*')
-    .eq('is_active', true)
-    .order('starts_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    const { data, error } = await supabase
+      .from('bosses')
+      .select('*')
+      .eq('is_active', true)
+      .order('starts_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-  console.log('➡️ FETCH BOSS РЕЗУЛЬТАТ:', { data, error });
+    console.log('➡️ FETCH BOSS РЕЗУЛЬТАТ:', { data, error });
 
-  if (error) {
-    console.error('❌ Ошибка при получении босса:', error.message);
-  }
+    if (error) {
+      console.error('❌ Ошибка при получении босса:', error.message);
+    }
 
-  if (data) setBoss(data);
-  setLoading(false);
-};
+    if (data) setBoss(data);
+    setLoading(false);
+  };
 
   const attackBoss = useCallback(async () => {
-    if (!boss || clickCooldown || !telegramUserId) return;
+    if (!boss || clickCooldown || !userUuid) return;
     setClickCooldown(true);
 
     const random = Math.random();
@@ -48,20 +46,24 @@ export default function BattlePage() {
 
     setEffect(is_crit ? 'crit' : is_miss ? 'miss' : 'normal');
 
-    await supabase.from('attacks').insert({
+    const { error } = await supabase.from('attacks').insert({
       boss_id: boss.id,
-      user_id: telegramUserId,
+      user_id: userUuid,
       damage,
       is_crit,
       is_miss,
     });
+
+    if (error) {
+      console.error('❌ Ошибка при атаке:', error.message);
+    }
 
     await fetchBoss();
     setTimeout(() => {
       setClickCooldown(false);
       setEffect(null);
     }, 500);
-  }, [boss, clickCooldown, telegramUserId]);
+  }, [boss, clickCooldown, userUuid]);
 
   useEffect(() => {
     fetchBoss();
@@ -69,10 +71,22 @@ export default function BattlePage() {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
       tg.ready();
-
       const user = tg.initDataUnsafe?.user;
+
       if (user?.id) {
-        setTelegramUserId(user.id.toString());
+        const telegram_id = user.id;
+        supabase
+          .from('users')
+          .select('id')
+          .eq('telegram_id', telegram_id)
+          .maybeSingle()
+          .then(({ data, error }) => {
+            if (error || !data?.id) {
+              console.error('❌ Не удалось получить UUID пользователя:', error);
+            } else {
+              setUserUuid(data.id);
+            }
+          });
       }
     }
   }, []);
