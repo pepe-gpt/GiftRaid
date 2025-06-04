@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import '@/types/telegram';
 
 interface Boss {
   id: string;
@@ -7,12 +8,6 @@ interface Boss {
   hp_max: number;
   hp_current: number;
   image_url?: string;
-}
-
-declare global {
-  interface Window {
-    Telegram: any;
-  }
 }
 
 export default function BattlePage() {
@@ -39,7 +34,6 @@ export default function BattlePage() {
     if (!boss || clickCooldown || !telegramUserId) return;
     setClickCooldown(true);
 
-    // Урон и эффект
     const random = Math.random();
     const damage = random < 0.1 ? 0 : random < 0.3 ? 50 : 10;
     const is_crit = damage === 50;
@@ -47,7 +41,6 @@ export default function BattlePage() {
 
     setEffect(is_crit ? 'crit' : is_miss ? 'miss' : 'normal');
 
-    // Сохраняем атаку
     await supabase.from('attacks').insert({
       boss_id: boss.id,
       user_id: telegramUserId,
@@ -66,10 +59,14 @@ export default function BattlePage() {
   useEffect(() => {
     fetchBoss();
 
-    // Telegram init
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initDataUnsafe?.user) {
-      const user = window.Telegram.WebApp.initDataUnsafe.user;
-      setTelegramUserId(user.id.toString());
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.ready();
+
+      const user = tg.initDataUnsafe?.user;
+      if (user?.id) {
+        setTelegramUserId(user.id.toString());
+      }
     }
   }, []);
 

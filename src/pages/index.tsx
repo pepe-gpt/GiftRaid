@@ -1,45 +1,52 @@
+// src/pages/index.tsx
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import '@/types/telegram';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-declare global {
-  interface Window {
-    Telegram: any;
-  }
+interface TelegramUser {
+  id: number;
+  first_name: string;
+  username?: string;
+  photo_url?: string;
 }
 
 export default function HomePage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<TelegramUser | null>(null);
 
   useEffect(() => {
-    const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-    window.Telegram.WebApp.ready();
-    console.log('Telegram SDK:', window.Telegram.WebApp);
-    console.log('initDataUnsafe:', window.Telegram.WebApp.initDataUnsafe);
-  } else {
-    console.log('Telegram WebApp SDK not available');
-  }
+      const tg = window.Telegram.WebApp;
+      tg.ready();
 
-    if (telegramUser) {
-      setUser(telegramUser);
+      const telegramUser = tg.initDataUnsafe?.user;
+      console.log('Telegram SDK доступен:', tg);
+      console.log('Пользователь:', telegramUser);
 
-      supabase.from('users').upsert(
-  [
-    {
-      telegram_id: telegramUser.id,
-      first_name: telegramUser.first_name,
-      username: telegramUser.username,
-      photo_url: telegramUser.photo_url,
-    },
-  ],
-  { onConflict: 'telegram_id' }
-);
+      if (telegramUser) {
+        setUser(telegramUser);
 
+        supabase
+          .from('users')
+          .upsert(
+            [{
+              telegram_id: telegramUser.id,
+              first_name: telegramUser.first_name,
+              username: telegramUser.username,
+              photo_url: telegramUser.photo_url,
+            }],
+            { onConflict: 'telegram_id' }
+          )
+          .then(({ error }) => {
+            if (error) console.error('Ошибка при сохранении пользователя:', error);
+          });
+      }
+    } else {
+      console.warn('Telegram WebApp SDK недоступен');
     }
   }, []);
 
@@ -53,6 +60,7 @@ export default function HomePage() {
         <img
           src={user.photo_url}
           width={100}
+          height={100}
           style={{ borderRadius: '50%' }}
           alt="avatar"
         />
