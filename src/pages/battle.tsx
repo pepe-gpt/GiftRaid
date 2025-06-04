@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useEffect, useState, useCallback } from 'react';
 
 interface Boss {
   id: string;
@@ -13,11 +13,11 @@ export default function BattlePage() {
   const [boss, setBoss] = useState<Boss | null>(null);
   const [loading, setLoading] = useState(true);
   const [clickCooldown, setClickCooldown] = useState(false);
-  const [userUuid, setUserUuid] = useState<string | null>(null);
+  const [telegramUserId, setTelegramUserId] = useState<string | null>(null);
   const [effect, setEffect] = useState<'crit' | 'miss' | 'normal' | null>(null);
 
   const fetchBoss = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('bosses')
       .select('*')
       .eq('is_active', true)
@@ -25,18 +25,12 @@ export default function BattlePage() {
       .limit(1)
       .maybeSingle();
 
-    console.log('➡️ FETCH BOSS РЕЗУЛЬТАТ:', { data, error });
-
-    if (error) {
-      console.error('❌ Ошибка при получении босса:', error.message);
-    }
-
     if (data) setBoss(data);
     setLoading(false);
   };
 
   const attackBoss = useCallback(async () => {
-    if (!boss || clickCooldown || !userUuid) return;
+    if (!boss || clickCooldown || !telegramUserId) return;
     setClickCooldown(true);
 
     const random = Math.random();
@@ -46,49 +40,51 @@ export default function BattlePage() {
 
     setEffect(is_crit ? 'crit' : is_miss ? 'miss' : 'normal');
 
-    const { error } = await supabase.from('attacks').insert({
+    await supabase.from('attacks').insert({
       boss_id: boss.id,
-      user_id: userUuid,
+      user_id: telegramUserId,
       damage,
       is_crit,
       is_miss,
     });
 
-    if (error) {
-      console.error('❌ Ошибка при атаке:', error.message);
-    }
-
-    await fetchBoss();
     setTimeout(() => {
       setClickCooldown(false);
       setEffect(null);
     }, 500);
-  }, [boss, clickCooldown, userUuid]);
+  }, [boss, clickCooldown, telegramUserId]);
 
   useEffect(() => {
     fetchBoss();
+
+    const channel = supabase
+      .channel('bosses-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'bosses',
+          filter: 'is_active=eq.true',
+        },
+        (payload) => {
+          setBoss(payload.new as Boss);
+        }
+      )
+      .subscribe();
 
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
       tg.ready();
       const user = tg.initDataUnsafe?.user;
-
       if (user?.id) {
-        const telegram_id = user.id;
-        supabase
-          .from('users')
-          .select('id')
-          .eq('telegram_id', telegram_id)
-          .maybeSingle()
-          .then(({ data, error }) => {
-            if (error || !data?.id) {
-              console.error('❌ Не удалось получить UUID пользователя:', error);
-            } else {
-              setUserUuid(data.id);
-            }
-          });
+        setTelegramUserId(user.id.toString());
       }
     }
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   if (loading || !boss) return <div>Загрузка...</div>;
