@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   'https://tyvjdugqmlzshbamrrxq.supabase.co',
-  'YOUR_PUBLIC_ANON_KEY' // замени на свой ключ
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dmpkdWdxbWx6c2hiYW1ycnhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5NjQ1ODIsImV4cCI6MjA2NDU0MDU4Mn0.94wawiD9Yi5SljGFuuX8n0JhmwOKxxMz7Viqh_R8mlc' // замени на свой ключ
 );
 
 type AttackOption = {
