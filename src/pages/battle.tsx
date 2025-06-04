@@ -1,6 +1,6 @@
-import { supabase } from '../lib/supabase';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { supabase } from '../lib/supabase';
 
 interface Boss {
   id: string;
@@ -10,15 +10,35 @@ interface Boss {
   image_url?: string;
 }
 
+interface TelegramUser {
+  id: number;
+  first_name: string;
+  username?: string;
+}
+
 export default function BattlePage() {
+  const [boss, setBoss] = useState<Boss | null>(null);
+  const [user, setUser] = useState<TelegramUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [questionOpen, setQuestionOpen] = useState(false);
+  const [resultText, setResultText] = useState<string | null>(null);
+
   const router = useRouter();
 
-  const [boss, setBoss] = useState<Boss | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [clickCooldown, setClickCooldown] = useState(false);
-  const [telegramUserId, setTelegramUserId] = useState<string | null>(null);
-  const [effect, setEffect] = useState<'crit' | 'miss' | 'normal' | null>(null);
-  const [lastDamage, setLastDamage] = useState<number>(0);
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.ready();
+      const tgUser = tg.initDataUnsafe?.user;
+      if (tgUser?.id) {
+        setUser({
+          id: tgUser.id,
+          first_name: tgUser.first_name,
+          username: tgUser.username,
+        });
+      }
+    }
+  }, []);
 
   const fetchBoss = async () => {
     const { data } = await supabase
@@ -33,51 +53,8 @@ export default function BattlePage() {
     setLoading(false);
   };
 
-  const attackBoss = useCallback(async () => {
-    if (!boss || clickCooldown || !telegramUserId || boss.hp_current <= 0) return;
-    setClickCooldown(true);
-
-    const random = Math.random();
-    const damage = random < 0.1 ? 0 : random < 0.3 ? 50 : 10;
-    const is_crit = damage === 50;
-    const is_miss = damage === 0;
-
-    setLastDamage(damage);
-    setEffect(is_crit ? 'crit' : is_miss ? 'miss' : 'normal');
-
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('telegram_id', telegramUserId)
-      .maybeSingle();
-
-    if (userError || !user) {
-      console.error('❌ Пользователь не найден в таблице users:', userError);
-      return;
-    }
-
-    const { error } = await supabase.from('attacks').insert({
-      boss_id: boss.id,
-      user_id: user.id,
-      damage,
-      is_crit,
-      is_miss,
-    });
-
-    if (error) {
-      console.error('❌ Ошибка при вставке атаки:', error.message);
-    }
-
-    setTimeout(() => {
-      setClickCooldown(false);
-      setEffect(null);
-    }, 500);
-  }, [boss, clickCooldown, telegramUserId]);
-
   useEffect(() => {
     fetchBoss();
-
-    let timeout: NodeJS.Timeout | null = null;
 
     const channel = supabase
       .channel('bosses-realtime')
@@ -89,87 +66,84 @@ export default function BattlePage() {
           table: 'bosses',
           filter: 'is_active=eq.true',
         },
-        () => {
-          if (timeout) clearTimeout(timeout);
-          timeout = setTimeout(fetchBoss, 100);
+        (payload) => {
+          setBoss(payload.new as Boss);
         }
       )
       .subscribe();
 
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp;
-      tg.ready();
-      const user = tg.initDataUnsafe?.user;
-      if (user?.id) {
-        setTelegramUserId(String(user.id));
-      }
-    }
-
     return () => {
-      if (timeout) clearTimeout(timeout);
       supabase.removeChannel(channel);
     };
   }, []);
 
-  if (loading || !boss) return <div>Загрузка...</div>;
+  const handleAttack = () => {
+    setQuestionOpen(true);
+    setResultText(null);
+  };
 
-  const isBossDead = boss.hp_current <= 0;
+  const handleChoice = async (choice: number) => {
+    if (!boss || !user) return;
+    setQuestionOpen(false);
+    setResultText('Определяем результат...');
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const access_token = sessionData.session?.access_token || '';
+
+    const res = await fetch('/functions/v1/perform_attack', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${access_token}`,
+      },
+      body: JSON.stringify({
+        boss_id: boss.id,
+        user_id: user.id,
+        option_index: choice,
+      }),
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      setResultText(result.error || 'Ошибка при атаке.');
+    } else {
+      setResultText(result.message);
+    }
+  };
+
+  if (loading || !boss || !user) return <div>Загрузка...</div>;
 
   return (
-    <div style={{ textAlign: 'center', padding: 20 }}>
+    <div style={{ padding: 20, textAlign: 'center' }}>
       <h1>{boss.name}</h1>
-
-      <div style={{ position: 'relative', display: 'inline-block' }}>
-        <img
-          src={boss.image_url || '/assets/ui/boss-default.png'}
-          alt="boss"
-          width={200}
-          height={200}
-          onClick={attackBoss}
-          style={{
-            cursor: isBossDead ? 'not-allowed' : 'pointer',
-            opacity: isBossDead ? 0.5 : 1,
-          }}
-        />
-
-        {effect && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              fontSize: '24px',
-              fontWeight: 'bold',
-              color:
-                effect === 'crit' ? 'red' : effect === 'miss' ? 'gray' : 'white',
-              textShadow: '1px 1px 3px black',
-            }}
-          >
-            {effect === 'crit'
-              ? `КРИТ! -${lastDamage}`
-              : effect === 'miss'
-              ? 'ПРОМАХ'
-              : `-${lastDamage}`}
-          </div>
-        )}
-      </div>
+      <img
+        src={boss.image_url || '/assets/ui/boss-default.png'}
+        width={200}
+        height={200}
+        alt="boss"
+      />
 
       <div style={{ marginTop: 20 }}>
-        <progress
-          value={boss.hp_current}
-          max={boss.hp_max}
-          style={{ width: '100%' }}
-        />
-        <p>
-          HP: {boss.hp_current} / {boss.hp_max}
-        </p>
+        <progress value={boss.hp_current} max={boss.hp_max} style={{ width: '100%' }} />
+        <p>HP: {boss.hp_current} / {boss.hp_max}</p>
       </div>
 
-      {isBossDead && (
-        <p style={{ color: 'red', fontWeight: 'bold', fontSize: '20px' }}>
-          Босс повержен!
-        </p>
+      {!questionOpen && !resultText && (
+        <button onClick={handleAttack}>⚔️ Атаковать</button>
+      )}
+
+      {questionOpen && (
+        <div style={{ marginTop: 20 }}>
+          <p>Торт взвыл и поднял кремовый щит! Что ты сделаешь?</p>
+          <button onClick={() => handleChoice(0)}>🍴 Воткнуть вилку сбоку</button><br />
+          <button onClick={() => handleChoice(1)}>🧁 Засыпать пудрой</button><br />
+          <button onClick={() => handleChoice(2)}>🕺 Танец взбитых сливок</button>
+        </div>
+      )}
+
+      {resultText && (
+        <p style={{ marginTop: 20, fontWeight: 'bold' }}>{resultText}</p>
       )}
 
       <div style={{ marginTop: 30 }}>
@@ -178,4 +152,3 @@ export default function BattlePage() {
     </div>
   );
 }
-
