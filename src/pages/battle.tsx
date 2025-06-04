@@ -19,18 +19,23 @@ export default function BattlePage() {
   const [effect, setEffect] = useState<'crit' | 'miss' | 'normal' | null>(null);
 
   const fetchBoss = async () => {
-    const { data, error } = await supabase
-  .from('bosses')
-  .select('*')
-  .eq('is_active', true)
-  .order('starts_at', { ascending: true })
-  .limit(1)
-  .maybeSingle();
+  const { data, error } = await supabase
+    .from('bosses')
+    .select('*')
+    .eq('is_active', true)
+    .order('starts_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
 
+  console.log('➡️ FETCH BOSS РЕЗУЛЬТАТ:', { data, error });
 
-    if (data) setBoss(data);
-    setLoading(false);
-  };
+  if (error) {
+    console.error('❌ Ошибка при получении босса:', error.message);
+  }
+
+  if (data) setBoss(data);
+  setLoading(false);
+};
 
   const attackBoss = useCallback(async () => {
     if (!boss || clickCooldown || !telegramUserId) return;
