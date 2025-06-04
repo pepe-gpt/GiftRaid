@@ -1,7 +1,6 @@
 // src/pages/index.tsx
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import '../../types/telegram';
 
 
 const supabase = createClient(
