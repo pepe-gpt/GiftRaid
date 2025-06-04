@@ -12,6 +12,7 @@ interface Boss {
 
 export default function BattlePage() {
   const router = useRouter();
+
   const [boss, setBoss] = useState<Boss | null>(null);
   const [loading, setLoading] = useState(true);
   const [telegramUserId, setTelegramUserId] = useState<string | null>(null);
@@ -42,41 +43,60 @@ export default function BattlePage() {
     setLastDamage(damage);
     setEffect(is_crit ? 'crit' : is_miss ? 'miss' : 'normal');
 
-    // Показываем эффект на 300мс
-    setTimeout(() => {
-      setEffect(null);
-    }, 300);
-
+    // Отображение урона (независимо от состояния базы)
     if (!is_miss) {
       setBoss(prev =>
         prev ? { ...prev, hp_current: Math.max(prev.hp_current - damage, 0) } : prev
       );
     }
 
-    supabase
-      .from('users')
-      .select('id')
-      .eq('telegram_id', telegramUserId)
-      .maybeSingle()
-      .then(({ data: user, error: userError }) => {
-        if (userError || !user) {
-          console.error('❌ Пользователь не найден в таблице users:', userError);
-          return;
-        }
+    // Сброс эффекта
+    setTimeout(() => setEffect(null), 300);
 
-        supabase.from('attacks').insert({
-          boss_id: boss.id,
-          user_id: user.id,
-          damage,
-          is_crit,
-          is_miss,
-        }).then(({ error }) => {
-          if (error) {
-            console.error('❌ Ошибка при вставке атаки:', error.message);
-          }
-        });
+    // Получить user_id по telegram_id и записать атаку
+    (async () => {
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('telegram_id', telegramUserId)
+        .maybeSingle();
+
+      if (userError || !user) {
+        console.error('❌ Пользователь не найден в таблице users:', userError);
+        return;
+      }
+
+      const { error } = await supabase.from('attacks').insert({
+        boss_id: boss.id,
+        user_id: user.id,
+        damage,
+        is_crit,
+        is_miss,
       });
+
+      if (error) {
+        console.error('❌ Ошибка при вставке атаки:', error.message);
+      } else {
+        fetchBoss(); // Перезапрашиваем состояние босса после атаки
+      }
+    })();
   }, [boss, telegramUserId]);
+
+  const createTestBoss = async () => {
+    const { error } = await supabase.from('bosses').insert({
+      name: 'Тест-босс',
+      hp_max: 1000,
+      hp_current: 1000,
+      is_active: true,
+      starts_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.error('Ошибка при создании босса:', error.message);
+    } else {
+      fetchBoss();
+    }
+  };
 
   useEffect(() => {
     fetchBoss();
