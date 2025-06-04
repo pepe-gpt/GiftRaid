@@ -18,6 +18,8 @@ export default function BattlePage() {
   const [telegramUserId, setTelegramUserId] = useState<string | null>(null);
   const [effect, setEffect] = useState<'crit' | 'miss' | 'normal' | null>(null);
   const [lastDamage, setLastDamage] = useState<number>(0);
+  const [pendingDamage, setPendingDamage] = useState<number>(0);
+  const [attackQueue, setAttackQueue] = useState(0);
 
   const fetchBoss = async () => {
     const { data } = await supabase
@@ -32,8 +34,8 @@ export default function BattlePage() {
     setLoading(false);
   };
 
-  const attackBoss = useCallback(() => {
-    if (!boss || !telegramUserId || boss.hp_current <= 0) return;
+  const attackBoss = useCallback(async () => {
+    if (!boss || boss.hp_current - pendingDamage <= 0 || !telegramUserId) return;
 
     const random = Math.random();
     const damage = random < 0.1 ? 0 : random < 0.3 ? 50 : 10;
@@ -43,44 +45,48 @@ export default function BattlePage() {
     setLastDamage(damage);
     setEffect(is_crit ? 'crit' : is_miss ? 'miss' : 'normal');
 
-    // Отображение урона (независимо от состояния базы)
     if (!is_miss) {
-      setBoss(prev =>
-        prev ? { ...prev, hp_current: Math.max(prev.hp_current - damage, 0) } : prev
-      );
+      setPendingDamage((prev) => prev + damage);
     }
 
-    // Сброс эффекта
-    setTimeout(() => setEffect(null), 300);
+    setAttackQueue((prev) => prev + 1);
 
-    // Получить user_id по telegram_id и записать атаку
-    (async () => {
-      const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('telegram_id', telegramUserId)
-        .maybeSingle();
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('telegram_id', telegramUserId)
+      .maybeSingle();
 
-      if (userError || !user) {
-        console.error('❌ Пользователь не найден в таблице users:', userError);
-        return;
-      }
+    if (userError || !user) {
+      console.error('❌ Пользователь не найден в таблице users:', userError);
+      setAttackQueue((prev) => prev - 1);
+      return;
+    }
 
-      const { error } = await supabase.from('attacks').insert({
-        boss_id: boss.id,
-        user_id: user.id,
-        damage,
-        is_crit,
-        is_miss,
-      });
+    const { error } = await supabase.from('attacks').insert({
+      boss_id: boss.id,
+      user_id: user.id,
+      damage,
+      is_crit,
+      is_miss,
+    });
 
-      if (error) {
-        console.error('❌ Ошибка при вставке атаки:', error.message);
-      } else {
-        fetchBoss(); // Перезапрашиваем состояние босса после атаки
-      }
-    })();
-  }, [boss, telegramUserId]);
+    if (error) {
+      console.error('❌ Ошибка при вставке атаки:', error.message);
+    }
+
+    if (!is_miss) {
+      setPendingDamage((prev) => prev - damage);
+    }
+
+    setAttackQueue((prev) => {
+      const newQueue = prev - 1;
+      if (newQueue === 0) fetchBoss();
+      return newQueue;
+    });
+
+    setTimeout(() => setEffect(null), 500);
+  }, [boss, telegramUserId, pendingDamage]);
 
   const createTestBoss = async () => {
     const { error } = await supabase.from('bosses').insert({
@@ -133,7 +139,8 @@ export default function BattlePage() {
 
   if (loading || !boss) return <div>Загрузка...</div>;
 
-  const isBossDead = boss.hp_current <= 0;
+  const isBossDead = boss.hp_current - pendingDamage <= 0;
+  const displayedHp = Math.max(boss.hp_current - pendingDamage, 0);
 
   return (
     <div style={{ textAlign: 'center', padding: 20 }}>
@@ -152,6 +159,7 @@ export default function BattlePage() {
           }}
         />
 
+        {/* Эффект урона */}
         {effect && (
           <div
             style={{
@@ -175,14 +183,15 @@ export default function BattlePage() {
         )}
       </div>
 
+      {/* ХП босса */}
       <div style={{ marginTop: 20 }}>
         <progress
-          value={boss.hp_current}
+          value={displayedHp}
           max={boss.hp_max}
           style={{ width: '100%' }}
         />
         <p>
-          HP: {boss.hp_current} / {boss.hp_max}
+          HP: {displayedHp} / {boss.hp_max}
         </p>
       </div>
 
