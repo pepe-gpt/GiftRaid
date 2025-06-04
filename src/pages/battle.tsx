@@ -15,9 +15,8 @@ export default function BattlePage() {
   const [clickCooldown, setClickCooldown] = useState(false);
   const [telegramUserId, setTelegramUserId] = useState<string | null>(null);
   const [effect, setEffect] = useState<'crit' | 'miss' | 'normal' | null>(null);
-  const [lastDamage, setLastDamage] = useState<number>(0); // для отображения урона
+  const [lastDamage, setLastDamage] = useState<number>(0);
 
-  // Получить текущего активного босса
   const fetchBoss = async () => {
     const { data } = await supabase
       .from('bosses')
@@ -31,7 +30,6 @@ export default function BattlePage() {
     setLoading(false);
   };
 
-  // Атака по боссу
   const attackBoss = useCallback(async () => {
     if (!boss || clickCooldown || !telegramUserId) return;
     setClickCooldown(true);
@@ -41,45 +39,51 @@ export default function BattlePage() {
     const is_crit = damage === 50;
     const is_miss = damage === 0;
 
-    setLastDamage(damage); // сохранить урон для визуального эффекта
+    setLastDamage(damage);
     setEffect(is_crit ? 'crit' : is_miss ? 'miss' : 'normal');
 
-    // Отладка: что мы отправляем
-    console.log('sending attack:', {
+    // 🔍 Получаем UUID пользователя из таблицы users по Telegram ID
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('telegram_id', telegramUserId)
+      .maybeSingle();
+
+    if (userError || !user) {
+      console.error('❌ Пользователь не найден в таблице users:', userError);
+      return;
+    }
+
+    // ✅ Записываем атаку в таблицу attacks
+    console.log('✅ sending attack:', {
       boss_id: boss.id,
-      user_id: telegramUserId,
+      user_id: user.id,
       damage,
       is_crit,
       is_miss,
     });
 
-    // Вставка атаки в Supabase
-    const { error } = await supabase
-      .from('attacks')
-      .insert({
-        boss_id: boss.id,
-        user_id: telegramUserId,
-        damage,
-        is_crit,
-        is_miss,
-      });
+    const { error } = await supabase.from('attacks').insert({
+      boss_id: boss.id,
+      user_id: user.id,
+      damage,
+      is_crit,
+      is_miss,
+    });
 
     if (error) {
-      console.error('Ошибка при вставке атаки:', error.message);
+      console.error('❌ Ошибка при вставке атаки:', error.message);
     }
 
-    // Через 0.5 сек убрать эффект и разблокировать клик
     setTimeout(() => {
       setClickCooldown(false);
       setEffect(null);
     }, 500);
   }, [boss, clickCooldown, telegramUserId]);
 
-  // Инициализация
   useEffect(() => {
     fetchBoss();
 
-    // Подписка на обновления босса
     const channel = supabase
       .channel('bosses-realtime')
       .on(
@@ -96,13 +100,13 @@ export default function BattlePage() {
       )
       .subscribe();
 
-    // Telegram WebApp авторизация
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
       tg.ready();
       const user = tg.initDataUnsafe?.user;
       if (user?.id) {
-        setTelegramUserId(String(user.id)); // Приведение к строке
+        setTelegramUserId(String(user.id));
+        console.log('Telegram ID:', user.id);
       }
     }
 
@@ -111,7 +115,6 @@ export default function BattlePage() {
     };
   }, []);
 
-  // Загрузка
   if (loading || !boss) return <div>Загрузка...</div>;
 
   return (
