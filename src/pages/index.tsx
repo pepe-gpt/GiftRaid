@@ -17,6 +17,8 @@ export default function HomePage() {
 
   useEffect(() => {
     const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    console.log('Telegram:', window.Telegram?.WebApp);
+    console.log('initDataUnsafe:', window.Telegram?.WebApp?.initDataUnsafe);
 
     if (telegramUser) {
       setUser(telegramUser);
