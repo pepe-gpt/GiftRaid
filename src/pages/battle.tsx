@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import '@/types/telegram';
+import '../../types/telegram';
+
 
 interface Boss {
   id: string;

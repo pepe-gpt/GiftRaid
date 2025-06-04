@@ -1,7 +1,8 @@
 // src/pages/index.tsx
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import '@/types/telegram';
+import '../../types/telegram';
+
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
