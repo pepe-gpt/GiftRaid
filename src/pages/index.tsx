@@ -17,8 +17,13 @@ export default function HomePage() {
 
   useEffect(() => {
     const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-    console.log('Telegram:', window.Telegram?.WebApp);
-    console.log('initDataUnsafe:', window.Telegram?.WebApp?.initDataUnsafe);
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+    window.Telegram.WebApp.ready();
+    console.log('Telegram SDK:', window.Telegram.WebApp);
+    console.log('initDataUnsafe:', window.Telegram.WebApp.initDataUnsafe);
+  } else {
+    console.log('Telegram WebApp SDK not available');
+  }
 
     if (telegramUser) {
       setUser(telegramUser);
