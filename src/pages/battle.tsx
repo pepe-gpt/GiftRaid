@@ -1,3 +1,4 @@
+// pages/battle.tsx
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
@@ -88,30 +89,29 @@ export default function BattlePage() {
     setQuestionOpen(false);
     setResultText('Определяем результат...');
 
-    const session = await supabase.auth.getSession();
-    const token = session.data.session?.access_token;
+    try {
+      const res = await fetch('https://tyvjdugqmlzshbamrrxq.supabase.co/functions/v1/smooth-handler', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          boss_id: boss.id,
+          scenario_id: boss.scenario_id,
+          option_index: choice,
+        }),
+      });
 
-    const response = await fetch('https://tyvjdugqmlzshbamrrxq.supabase.co/functions/v1/smooth-handler', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        user_id: user.id,
-        boss_id: boss.id,
-        scenario_id: boss.scenario_id,
-        option_index: choice,
-      }),
-    });
-
-    if (!response.ok) {
-      setResultText('Ошибка при атаке.');
-      return;
+      const data = await res.json();
+      if (res.ok) {
+        setResultText(data.message);
+      } else {
+        setResultText(data.error || 'Ошибка при атаке.');
+      }
+    } catch (err) {
+      setResultText('Ошибка при соединении.');
     }
-
-    const result = await response.json();
-    setResultText(result.message);
   };
 
   if (loading || !boss || !user) return <div>Загрузка...</div>;
@@ -149,4 +149,3 @@ export default function BattlePage() {
     </div>
   );
 }
-
