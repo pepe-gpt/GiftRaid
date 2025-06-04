@@ -9,67 +9,104 @@ interface Boss {
   image_url?: string;
 }
 
+declare global {
+  interface Window {
+    Telegram: any;
+  }
+}
+
 export default function BattlePage() {
   const [boss, setBoss] = useState<Boss | null>(null);
   const [loading, setLoading] = useState(true);
   const [clickCooldown, setClickCooldown] = useState(false);
+  const [telegramUserId, setTelegramUserId] = useState<string | null>(null);
+  const [effect, setEffect] = useState<'crit' | 'miss' | 'normal' | null>(null);
 
   const fetchBoss = async () => {
-  const { data, error } = await supabase
-    .from('bosses')
-    .select('*')
-    .eq('is_active', true)
-    .order('starts_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    const { data, error } = await supabase
+      .from('bosses')
+      .select('*')
+      .eq('is_active', true)
+      .order('starts_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-
-  console.log('Результат fetchBoss:', data, error); // ← теперь без ошибок
-
-  if (data) setBoss(data);
-  setLoading(false);
-};
-
+    if (data) setBoss(data);
+    setLoading(false);
+  };
 
   const attackBoss = useCallback(async () => {
-    if (!boss || clickCooldown) return;
+    if (!boss || clickCooldown || !telegramUserId) return;
     setClickCooldown(true);
 
-    const damage = Math.random() < 0.1 ? 0 : Math.random() < 0.2 ? 50 : 10;
+    // Урон и эффект
+    const random = Math.random();
+    const damage = random < 0.1 ? 0 : random < 0.3 ? 50 : 10;
     const is_crit = damage === 50;
     const is_miss = damage === 0;
 
+    setEffect(is_crit ? 'crit' : is_miss ? 'miss' : 'normal');
+
+    // Сохраняем атаку
     await supabase.from('attacks').insert({
       boss_id: boss.id,
-      user_id: '00000000-0000-0000-0000-000000000000', // Временно
+      user_id: telegramUserId,
       damage,
       is_crit,
       is_miss,
     });
 
     await fetchBoss();
-    setTimeout(() => setClickCooldown(false), 500);
-  }, [boss, clickCooldown]);
+    setTimeout(() => {
+      setClickCooldown(false);
+      setEffect(null);
+    }, 500);
+  }, [boss, clickCooldown, telegramUserId]);
 
   useEffect(() => {
-  console.log('useEffect СРАБОТАЛ');
-  fetchBoss();
-  }, []);
+    fetchBoss();
 
+    // Telegram init
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initDataUnsafe?.user) {
+      const user = window.Telegram.WebApp.initDataUnsafe.user;
+      setTelegramUserId(user.id.toString());
+    }
+  }, []);
 
   if (loading || !boss) return <div>Загрузка...</div>;
 
   return (
     <div style={{ textAlign: 'center', padding: 20 }}>
       <h1>{boss.name}</h1>
-      <img
-        src={boss.image_url || '/assets/ui/boss-default.png'}
-        alt="boss"
-        width={200}
-        height={200}
-        onClick={attackBoss}
-        style={{ cursor: 'pointer' }}
-      />
+
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        <img
+          src={boss.image_url || '/assets/ui/boss-default.png'}
+          alt="boss"
+          width={200}
+          height={200}
+          onClick={attackBoss}
+          style={{ cursor: 'pointer' }}
+        />
+        {effect && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              fontSize: '24px',
+              fontWeight: 'bold',
+              color:
+                effect === 'crit' ? 'red' : effect === 'miss' ? 'gray' : 'white',
+              textShadow: '1px 1px 3px black',
+            }}
+          >
+            {effect === 'crit' ? 'КРИТ!' : effect === 'miss' ? 'ПРОМАХ' : '-10'}
+          </div>
+        )}
+      </div>
+
       <div style={{ marginTop: 20 }}>
         <progress value={boss.hp_current} max={boss.hp_max} style={{ width: '100%' }} />
         <p>
