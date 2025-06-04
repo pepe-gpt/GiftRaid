@@ -8,7 +8,6 @@ interface Boss {
   hp_max: number;
   hp_current: number;
   image_url?: string;
-  scenario_id: string;
 }
 
 interface TelegramUser {
@@ -23,7 +22,6 @@ export default function BattlePage() {
   const [loading, setLoading] = useState(true);
   const [questionOpen, setQuestionOpen] = useState(false);
   const [resultText, setResultText] = useState<string | null>(null);
-
   const router = useRouter();
 
   useEffect(() => {
@@ -32,6 +30,7 @@ export default function BattlePage() {
       tg.ready();
       const tgUser = tg.initDataUnsafe?.user;
       if (tgUser?.id) {
+        console.log('Пользователь:', tgUser);
         setUser({
           id: tgUser.id,
           first_name: tgUser.first_name,
@@ -83,35 +82,42 @@ export default function BattlePage() {
     setResultText(null);
   };
 
-  const handleChoice = async (option_index: number) => {
-    if (!boss || !user || !boss.scenario_id) return;
-    setQuestionOpen(false);
+  const handleChoice = async (optionIndex: number) => {
+    if (!boss || !user) return;
+
+    console.log('Выбранный вариант:', optionIndex);
     setResultText('Определяем результат...');
 
-    const session = await supabase.auth.getSession();
-    const access_token = session.data.session?.access_token;
+    try {
+      const response = await fetch('https://tyvjdugqmlzshbamrrxq.supabase.co/functions/v1/smooth-handler', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          boss_id: boss.id,
+          scenario_id: 1,
+          option_index: optionIndex
+        }),
+      });
 
-    const response = await fetch('https://tyvjdugqmlzshbamrrxq.supabase.co/functions/v1/smooth-handler', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${access_token}`,
-      },
-      body: JSON.stringify({
-        user_id: user.id,
-        boss_id: boss.id,
-        scenario_id: boss.scenario_id,
-        option_index,
-      }),
-    });
+      const data = await response.json();
+      console.log('Ответ от функции:', data);
 
-    if (!response.ok) {
-      setResultText('Ошибка сервера. Попробуйте позже.');
-      return;
+      if (!response.ok) {
+        setResultText(data?.error || 'Ошибка при атаке.');
+        return;
+      }
+
+      setResultText(data.message || `Урон: ${data.final_damage}`);
+    } catch (err) {
+      console.error('Ошибка запроса:', err);
+      setResultText('Ошибка соединения с сервером.');
     }
 
-    const result = await response.json();
-    setResultText(result.message || 'Готово!');
+    setQuestionOpen(false);
   };
 
   if (loading || !boss || !user) return <div>Загрузка...</div>;
