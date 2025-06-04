@@ -25,7 +25,6 @@ export default function HomePage() {
       if (telegramUser) {
         setUser(telegramUser);
 
-        // Добавление или обновление пользователя
         supabase
           .from('users')
           .upsert(
@@ -37,7 +36,7 @@ export default function HomePage() {
             }],
             { onConflict: 'telegram_id' }
           )
-          .select('id') // ⬅ вернёт uuid после вставки
+          .select('id')
           .single()
           .then(({ data, error }) => {
             if (error) {
@@ -52,12 +51,30 @@ export default function HomePage() {
     }
   }, []);
 
+  const createTestBoss = async () => {
+    const { error } = await supabase.from('bosses').insert({
+      name: 'Тест-босс',
+      hp_max: 1000,
+      hp_current: 1000,
+      is_active: true,
+      starts_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.error('Ошибка при создании босса:', error.message);
+      alert('Ошибка при создании босса');
+    } else {
+      alert('Босс создан! Перейди в бой.');
+    }
+  };
+
   if (!user) return <p>Загрузка Telegram...</p>;
 
   return (
     <div style={{ padding: '20px', textAlign: 'center' }}>
       <h1>Привет, {user.first_name}!</h1>
       <p>Ты авторизован через Telegram</p>
+
       {user.photo_url && (
         <img
           src={user.photo_url}
@@ -82,6 +99,22 @@ export default function HomePage() {
         }}
       >
         Перейти к бою с боссом
+      </button>
+
+      <button
+        onClick={createTestBoss}
+        style={{
+          marginTop: '10px',
+          padding: '10px 20px',
+          fontSize: '16px',
+          backgroundColor: '#2196F3',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+        }}
+      >
+        Создать нового босса (тест)
       </button>
     </div>
   );

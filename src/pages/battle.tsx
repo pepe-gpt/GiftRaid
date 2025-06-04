@@ -197,9 +197,6 @@ export default function BattlePage() {
       {/* Кнопки */}
       <div style={{ marginTop: 30 }}>
         <button onClick={() => router.push('/')}>Назад</button>
-        <button onClick={createTestBoss} style={{ marginLeft: 10 }}>
-          Создать нового босса
-        </button>
       </div>
     </div>
   );
