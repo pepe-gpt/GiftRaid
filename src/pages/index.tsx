@@ -11,6 +11,7 @@ interface TelegramUser {
 
 export default function HomePage() {
   const [user, setUser] = useState<TelegramUser | null>(null);
+  const [createdBossId, setCreatedBossId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -52,19 +53,24 @@ export default function HomePage() {
   }, []);
 
   const createTestBoss = async () => {
-    const { error } = await supabase.from('bosses').insert({
-      name: 'Тест-босс',
-      hp_max: 1000,
-      hp_current: 1000,
-      is_active: true,
-      starts_at: new Date().toISOString(),
-    });
+    const { data, error } = await supabase
+      .from('bosses')
+      .insert({
+        name: 'Тест-босс',
+        hp_max: 1000,
+        hp_current: 1000,
+        is_active: true,
+        starts_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
 
     if (error) {
       console.error('Ошибка при создании босса:', error.message);
       alert('Ошибка при создании босса');
     } else {
-      alert('Босс создан! Перейди в бой.');
+      setCreatedBossId(data.id);
+      alert('Босс создан! Нажми "Перейти к бою".');
     }
   };
 
@@ -86,7 +92,13 @@ export default function HomePage() {
       )}
 
       <button
-        onClick={() => router.push('/battle')}
+        onClick={() => {
+          if (createdBossId) {
+            router.push(`/battle?boss_id=${createdBossId}`);
+          } else {
+            router.push('/battle');
+          }
+        }}
         style={{
           marginTop: '20px',
           padding: '10px 20px',
