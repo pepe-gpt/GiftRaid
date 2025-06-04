@@ -87,29 +87,27 @@ export default function BattlePage() {
     setQuestionOpen(false);
     setResultText('Определяем результат...');
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const access_token = sessionData.session?.access_token || '';
-
-    const res = await fetch('/functions/v1/perform_attack', {
+    const response = await fetch('https://tyvjdugqmlzshbamrrxq.functions.supabase.co/smooth-handler', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${access_token}`,
+        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
       },
       body: JSON.stringify({
-        boss_id: boss.id,
         user_id: user.id,
-        option_index: choice,
+        boss_id: boss.id,
+        scenario_id: 1,
+        option_index: choice - 1,
       }),
     });
 
-    const result = await res.json();
-
-    if (!res.ok) {
-      setResultText(result.error || 'Ошибка при атаке.');
-    } else {
-      setResultText(result.message);
+    if (!response.ok) {
+      setResultText('Ошибка при атаке.');
+      return;
     }
+
+    const data = await response.json();
+    setResultText(data.message);
   };
 
   if (loading || !boss || !user) return <div>Загрузка...</div>;
@@ -117,12 +115,7 @@ export default function BattlePage() {
   return (
     <div style={{ padding: 20, textAlign: 'center' }}>
       <h1>{boss.name}</h1>
-      <img
-        src={boss.image_url || '/assets/ui/boss-default.png'}
-        width={200}
-        height={200}
-        alt="boss"
-      />
+      <img src={boss.image_url || '/assets/ui/boss-default.png'} width={200} height={200} alt="boss" />
 
       <div style={{ marginTop: 20 }}>
         <progress value={boss.hp_current} max={boss.hp_max} style={{ width: '100%' }} />
@@ -136,9 +129,9 @@ export default function BattlePage() {
       {questionOpen && (
         <div style={{ marginTop: 20 }}>
           <p>Торт взвыл и поднял кремовый щит! Что ты сделаешь?</p>
-          <button onClick={() => handleChoice(0)}>🍴 Воткнуть вилку сбоку</button><br />
-          <button onClick={() => handleChoice(1)}>🧁 Засыпать пудрой</button><br />
-          <button onClick={() => handleChoice(2)}>🕺 Танец взбитых сливок</button>
+          <button onClick={() => handleChoice(1)}>🍴 Воткнуть вилку сбоку</button><br />
+          <button onClick={() => handleChoice(2)}>🧁 Засыпать пудрой</button><br />
+          <button onClick={() => handleChoice(3)}>🕺 Танец взбитых сливок</button>
         </div>
       )}
 
