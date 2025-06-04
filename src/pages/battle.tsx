@@ -12,10 +12,8 @@ interface Boss {
 
 export default function BattlePage() {
   const router = useRouter();
-
   const [boss, setBoss] = useState<Boss | null>(null);
   const [loading, setLoading] = useState(true);
-  const [clickCooldown, setClickCooldown] = useState(false);
   const [telegramUserId, setTelegramUserId] = useState<string | null>(null);
   const [effect, setEffect] = useState<'crit' | 'miss' | 'normal' | null>(null);
   const [lastDamage, setLastDamage] = useState<number>(0);
@@ -33,9 +31,8 @@ export default function BattlePage() {
     setLoading(false);
   };
 
-  const attackBoss = useCallback(async () => {
-    if (!boss || clickCooldown || !telegramUserId || boss.hp_current <= 0) return;
-    setClickCooldown(true);
+  const attackBoss = useCallback(() => {
+    if (!boss || !telegramUserId || boss.hp_current <= 0) return;
 
     const random = Math.random();
     const damage = random < 0.1 ? 0 : random < 0.3 ? 50 : 10;
@@ -45,57 +42,41 @@ export default function BattlePage() {
     setLastDamage(damage);
     setEffect(is_crit ? 'crit' : is_miss ? 'miss' : 'normal');
 
-    // моментальное обновление HP до ответа от сервера
+    // Показываем эффект на 300мс
+    setTimeout(() => {
+      setEffect(null);
+    }, 300);
+
     if (!is_miss) {
       setBoss(prev =>
         prev ? { ...prev, hp_current: Math.max(prev.hp_current - damage, 0) } : prev
       );
     }
 
-    const { data: user, error: userError } = await supabase
+    supabase
       .from('users')
       .select('id')
       .eq('telegram_id', telegramUserId)
-      .maybeSingle();
+      .maybeSingle()
+      .then(({ data: user, error: userError }) => {
+        if (userError || !user) {
+          console.error('❌ Пользователь не найден в таблице users:', userError);
+          return;
+        }
 
-    if (userError || !user) {
-      console.error('❌ Пользователь не найден в таблице users:', userError);
-      return;
-    }
-
-    const { error } = await supabase.from('attacks').insert({
-      boss_id: boss.id,
-      user_id: user.id,
-      damage,
-      is_crit,
-      is_miss,
-    });
-
-    if (error) {
-      console.error('❌ Ошибка при вставке атаки:', error.message);
-    }
-
-    setTimeout(() => {
-      setClickCooldown(false);
-      setEffect(null);
-    }, 500);
-  }, [boss, clickCooldown, telegramUserId]);
-
-  const createTestBoss = async () => {
-    const { error } = await supabase.from('bosses').insert({
-      name: 'Тест-босс',
-      hp_max: 1000,
-      hp_current: 1000,
-      is_active: true,
-      starts_at: new Date().toISOString(),
-    });
-
-    if (error) {
-      console.error('Ошибка при создании босса:', error.message);
-    } else {
-      fetchBoss();
-    }
-  };
+        supabase.from('attacks').insert({
+          boss_id: boss.id,
+          user_id: user.id,
+          damage,
+          is_crit,
+          is_miss,
+        }).then(({ error }) => {
+          if (error) {
+            console.error('❌ Ошибка при вставке атаки:', error.message);
+          }
+        });
+      });
+  }, [boss, telegramUserId]);
 
   useEffect(() => {
     fetchBoss();
@@ -151,7 +132,6 @@ export default function BattlePage() {
           }}
         />
 
-        {/* Эффект урона */}
         {effect && (
           <div
             style={{
@@ -175,7 +155,6 @@ export default function BattlePage() {
         )}
       </div>
 
-      {/* ХП босса */}
       <div style={{ marginTop: 20 }}>
         <progress
           value={boss.hp_current}
@@ -187,18 +166,15 @@ export default function BattlePage() {
         </p>
       </div>
 
-      {/* Заглушка при смерти */}
       {isBossDead && (
         <p style={{ color: 'red', fontWeight: 'bold', fontSize: '20px' }}>
           Босс повержен!
         </p>
       )}
 
-      {/* Кнопки */}
       <div style={{ marginTop: 30 }}>
         <button onClick={() => router.push('/')}>Назад</button>
       </div>
     </div>
   );
 }
-
