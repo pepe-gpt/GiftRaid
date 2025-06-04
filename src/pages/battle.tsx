@@ -1,157 +1,113 @@
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
-import { supabase } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
-interface Boss {
+const supabase = createClient(
+  'https://tyvjdugqmlzshbamrrxq.supabase.co',
+  'YOUR_PUBLIC_ANON_KEY' // замени на свой ключ
+);
+
+type AttackOption = {
+  text: string;
+  damage: number;
+  crit: number;
+  miss: number;
+};
+
+type Scenario = {
   id: string;
-  name: string;
-  hp_max: number;
-  hp_current: number;
-  image_url?: string;
-}
-
-interface TelegramUser {
-  id: number;
-  first_name: string;
-  username?: string;
-}
+  title: string;
+  options: AttackOption[];
+};
 
 export default function BattlePage() {
-  const [boss, setBoss] = useState<Boss | null>(null);
-  const [user, setUser] = useState<TelegramUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [questionOpen, setQuestionOpen] = useState(false);
-  const [resultText, setResultText] = useState<string | null>(null);
-  const router = useRouter();
+  const [scenario, setScenario] = useState<Scenario | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState<number | null>(null);
 
+  // Получаем Telegram user ID
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp;
-      tg.ready();
-      const tgUser = tg.initDataUnsafe?.user;
-      if (tgUser?.id) {
-        console.log('Пользователь:', tgUser);
-        setUser({
-          id: tgUser.id,
-          first_name: tgUser.first_name,
-          username: tgUser.username,
-        });
-      }
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+      setUserId(window.Telegram.WebApp.initDataUnsafe.user.id);
     }
   }, []);
 
-  const fetchBoss = async () => {
-    const { data } = await supabase
-      .from('bosses')
-      .select('*')
-      .eq('is_active', true)
-      .order('starts_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (data) setBoss(data);
-    setLoading(false);
-  };
-
+  // Загружаем случайный сценарий
   useEffect(() => {
-    fetchBoss();
+    const loadScenario = async () => {
+      const { data, error } = await supabase
+        .from('attack_scenarios')
+        .select('*')
+        .order('RANDOM()')
+        .limit(1)
+        .single();
 
-    const channel = supabase
-      .channel('bosses-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'bosses',
-          filter: 'is_active=eq.true',
-        },
-        (payload) => {
-          setBoss(payload.new as Boss);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+      if (error) {
+        console.error('Ошибка загрузки сценария', error);
+      } else {
+        setScenario(data as Scenario);
+      }
     };
+
+    loadScenario();
   }, []);
 
-  const handleAttack = () => {
-    setQuestionOpen(true);
-    setResultText(null);
-  };
-
   const handleChoice = async (optionIndex: number) => {
-    if (!boss || !user) return;
-
-    console.log('Выбранный вариант:', optionIndex);
-    setResultText('Определяем результат...');
-
+    if (!scenario || !userId) return;
+    setLoading(true);
     try {
-      const response = await fetch('https://tyvjdugqmlzshbamrrxq.supabase.co/functions/v1/smooth-handler', {
+      const sessionResult = await supabase.auth.getSession();
+      const accessToken = sessionResult.data.session?.access_token;
+
+      const res = await fetch('https://tyvjdugqmlzshbamrrxq.functions.supabase.co/smooth-handler', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`
+          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
         },
         body: JSON.stringify({
-          user_id: user.id,
-          boss_id: boss.id,
-          scenario_id: 1,
-          option_index: optionIndex
+          user_id: userId,
+          boss_id: 1,
+          scenario_id: scenario.id,
+          option_index: optionIndex,
         }),
       });
 
-      const data = await response.json();
-      console.log('Ответ от функции:', data);
-
-      if (!response.ok) {
-        setResultText(data?.error || 'Ошибка при атаке.');
-        return;
+      const json = await res.json();
+      if (json.error) {
+        setResult(`Ошибка: ${json.error}`);
+        console.error(json.error);
+      } else {
+        setResult(json.message);
       }
-
-      setResultText(data.message || `Урон: ${data.final_damage}`);
-    } catch (err) {
-      console.error('Ошибка запроса:', err);
-      setResultText('Ошибка соединения с сервером.');
+    } catch (e) {
+      console.error('Ошибка отправки:', e);
+      setResult('Произошла ошибка. Попробуй снова.');
     }
-
-    setQuestionOpen(false);
+    setLoading(false);
   };
 
-  if (loading || !boss || !user) return <div>Загрузка...</div>;
-
   return (
-    <div style={{ padding: 20, textAlign: 'center' }}>
-      <h1>{boss.name}</h1>
-      <img src={boss.image_url || '/assets/ui/boss-default.png'} width={200} height={200} alt="boss" />
-
-      <div style={{ marginTop: 20 }}>
-        <progress value={boss.hp_current} max={boss.hp_max} style={{ width: '100%' }} />
-        <p>HP: {boss.hp_current} / {boss.hp_max}</p>
-      </div>
-
-      {!questionOpen && !resultText && (
-        <button onClick={handleAttack}>⚔️ Атаковать</button>
+    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
+      <h2>⚔️ Битва с боссом</h2>
+      {scenario ? (
+        <>
+          <p>{scenario.title}</p>
+          {scenario.options.map((opt, index) => (
+            <button
+              key={index}
+              onClick={() => handleChoice(index)}
+              disabled={loading}
+              style={{ margin: '5px', padding: '10px', display: 'block' }}
+            >
+              {opt.text}
+            </button>
+          ))}
+        </>
+      ) : (
+        <p>Загрузка сценария...</p>
       )}
-
-      {questionOpen && (
-        <div style={{ marginTop: 20 }}>
-          <p>Торт взвыл и поднял кремовый щит! Что ты сделаешь?</p>
-          <button onClick={() => handleChoice(0)}>🍴 Воткнуть вилку сбоку</button><br />
-          <button onClick={() => handleChoice(1)}>🧁 Засыпать пудрой</button><br />
-          <button onClick={() => handleChoice(2)}>🕺 Танец взбитых сливок</button>
-        </div>
-      )}
-
-      {resultText && (
-        <p style={{ marginTop: 20, fontWeight: 'bold' }}>{resultText}</p>
-      )}
-
-      <div style={{ marginTop: 30 }}>
-        <button onClick={() => router.push('/')}>Назад</button>
-      </div>
+      {result && <p><strong>🎯 Результат:</strong> {result}</p>}
     </div>
   );
 }
