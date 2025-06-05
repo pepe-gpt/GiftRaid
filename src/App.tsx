@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { saveTelegramUser } from "./lib/auth";
+import { ProfilePage } from "./pages/ProfilePage";
+import { BottomNav } from "./components/BottomNav";
+
+type Tab = "quests" | "raids" | "battle" | "shop" | "profile";
 
 function App() {
   const [user, setUser] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<Tab>("profile");
 
   useEffect(() => {
-    const tg = window.Telegram.WebApp;
+    const tg = window.Telegram?.WebApp;
     const tgUser = tg?.initDataUnsafe?.user;
 
     if (tgUser) {
@@ -17,19 +22,29 @@ function App() {
     }
   }, []);
 
-  if (!user) return <div>Загрузка...</div>;
+  if (!user) return <div className="text-center mt-10">Загрузка...</div>;
+
+  const renderPage = () => {
+    switch (activeTab) {
+      case "profile":
+        return <ProfilePage user={user} />;
+      case "quests":
+        return <div className="text-center p-4">Задания (заглушка)</div>;
+      case "raids":
+        return <div className="text-center p-4">Рейды (заглушка)</div>;
+      case "battle":
+        return <div className="text-center p-4">Битва (заглушка)</div>;
+      case "shop":
+        return <div className="text-center p-4">Магазин (заглушка)</div>;
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div style={{ textAlign: "center", marginTop: "2rem" }}>
-      {user.photo_url && (
-        <img
-          src={user.photo_url}
-          alt="User"
-          style={{ width: 100, borderRadius: "50%" }}
-        />
-      )}
-      <h2>{user.first_name}</h2>
-      {user.username && <p>@{user.username}</p>}
+    <div className="flex flex-col h-screen">
+      <div className="flex-1 overflow-auto">{renderPage()}</div>
+      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );
 }
