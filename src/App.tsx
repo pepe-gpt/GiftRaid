@@ -10,7 +10,8 @@ const App = () => {
   const [activeTab, setActiveTab] = useState<Tab>('profile');
 
   useEffect(() => {
-    if (window.Telegram && window.Telegram.WebApp) {
+    // Инициализируем Telegram WebApp
+    if (window.Telegram?.WebApp) {
       window.Telegram.WebApp.ready();
     }
   }, []);
