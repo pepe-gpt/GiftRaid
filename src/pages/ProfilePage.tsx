@@ -1,33 +1,25 @@
-import { useTelegram } from '../hooks/useTelegram';
+type ProfilePageProps = {
+  user: {
+    first_name: string;
+    username?: string;
+    photo_url?: string;
+  };
+};
 
-export const ProfilePage = () => {
-  const { user } = useTelegram();
+export const ProfilePage = ({ user }: ProfilePageProps) => {
+  if (!user) return <div className="text-center mt-10">Пользователь не найден</div>;
 
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Debug Info</h2>
-      <pre className="text-sm bg-gray-100 p-2 rounded">
-        {JSON.stringify(window.Telegram?.WebApp?.initDataUnsafe, null, 2)}
-      </pre>
-
-      {!user ? (
-        <p className="mt-4 text-red-500 font-bold">User не найден!</p>
-      ) : (
-        <div className="flex flex-col items-center mt-6">
-          <img
-            src={user.photo_url}
-            alt="avatar"
-            className="w-24 h-24 rounded-full mb-4"
-          />
-          <h2 className="text-xl font-bold">{user.first_name}</h2>
-          <p className="text-gray-600">@{user.username}</p>
-          <p className="text-gray-500">ID: {user.id}</p>
-          <pre className="text-xs bg-gray-100 p-2 rounded mt-4">
-  {JSON.stringify(window.Telegram?.WebApp?.initDataUnsafe, null, 2)}
-</pre>
-
-        </div>
+    <div className="p-4 text-center">
+      {user.photo_url && (
+        <img
+          src={user.photo_url}
+          alt="avatar"
+          className="mx-auto w-24 h-24 rounded-full mb-2 border"
+        />
       )}
+      <h1 className="text-xl font-bold">{user.first_name}</h1>
+      {user.username && <p className="text-gray-500">@{user.username}</p>}
     </div>
   );
 };

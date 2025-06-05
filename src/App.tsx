@@ -8,18 +8,58 @@ type Tab = 'quests' | 'raids' | 'battle' | 'shop' | 'profile';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState<Tab>('profile');
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Инициализируем Telegram WebApp
-    if (window.Telegram?.WebApp) {
+    const fetchUser = async () => {
+      if (!window.Telegram || !window.Telegram.WebApp) return;
+
       window.Telegram.WebApp.ready();
-    }
+      const initData = window.Telegram.WebApp.initData;
+
+      try {
+        const res = await fetch(
+          'https://mecjaydtuxkvwrvnsqqj.supabase.co/functions/v1/auth',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ initData }),
+          }
+        );
+
+        const data = await res.json();
+        setUser(data.user);
+      } catch (error) {
+        console.error('Auth error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
   }, []);
 
   const renderPage = () => {
+    if (loading) {
+      return (
+        <div className="text-center mt-10 text-gray-400 text-lg">Загрузка...</div>
+      );
+    }
+
+    if (!user) {
+      return (
+        <div className="text-center mt-10 text-red-500">
+          Не удалось авторизоваться 😢
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 'profile':
-        return <ProfilePage />;
+        return <ProfilePage user={user} />;
       case 'battle':
         return <BattlePage />;
       default:
