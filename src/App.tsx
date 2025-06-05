@@ -20,18 +20,20 @@ const App = () => {
 
       try {
         const res = await fetch(
-          'https://mecjaydtuxkvwrvnsqqj.supabase.co/functions/v1/auth',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ initData }),
-          }
-        );
+  'https://mecjaydtuxkvwrvnsqqj.supabase.co/functions/v1/auth',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ initData }),
+  }
+);
 
-        const data = await res.json();
-        setUser(data.user);
+const data = await res.json();
+console.log('Ответ от Supabase:', data); // <--- Добавь эту строку
+setUser(data.user);
+
       } catch (error) {
         console.error('Auth error:', error);
       } finally {
