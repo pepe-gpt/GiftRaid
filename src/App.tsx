@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { saveTelegramUser } from "./lib/auth";
 import { ProfilePage } from "./pages/ProfilePage";
+import { BattlePage } from "./pages/BattlePage"; // ✅ добавляем
 import { BottomNav } from "./components/BottomNav";
 
 type Tab = "quests" | "raids" | "battle" | "shop" | "profile";
@@ -28,12 +29,12 @@ function App() {
     switch (activeTab) {
       case "profile":
         return <ProfilePage user={user} />;
+      case "battle":
+        return <BattlePage />; // ✅ подключаем реальную страницу битвы
       case "quests":
         return <div className="text-center p-4">Задания (заглушка)</div>;
       case "raids":
         return <div className="text-center p-4">Рейды (заглушка)</div>;
-      case "battle":
-        return <div className="text-center p-4">Битва (заглушка)</div>;
       case "shop":
         return <div className="text-center p-4">Магазин (заглушка)</div>;
       default:
