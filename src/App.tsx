@@ -12,51 +12,40 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      if (!window.Telegram || !window.Telegram.WebApp) return;
+    console.log('TG объект:', window.Telegram); // Проверка Telegram
 
+    if (window.Telegram && window.Telegram.WebApp) {
       window.Telegram.WebApp.ready();
+
       const initData = window.Telegram.WebApp.initData;
+      console.log('initData:', initData); // Проверка initData
 
-      try {
-        const res = await fetch(
-  'https://mecjaydtuxkvwrvnsqqj.supabase.co/functions/v1/auth',
-  {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ initData }),
-  }
-);
-
-const data = await res.json();
-console.log('Ответ от Supabase:', data); // <--- Добавь эту строку
-setUser(data.user);
-
-      } catch (error) {
-        console.error('Auth error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUser();
+      fetch('https://mecjaydtuxkvwrvnsqqj.supabase.co/functions/v1/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ initData }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          console.log('Ответ от Supabase:', data); // Проверка ответа
+          setUser(data.user);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error('Ошибка запроса:', err);
+          setLoading(false);
+        });
+    } else {
+      console.log('Telegram WebApp недоступен');
+      setLoading(false);
+    }
   }, []);
 
   const renderPage = () => {
     if (loading) {
-      return (
-        <div className="text-center mt-10 text-gray-400 text-lg">Загрузка...</div>
-      );
-    }
-
-    if (!user) {
-      return (
-        <div className="text-center mt-10 text-red-500">
-          Не удалось авторизоваться 😢
-        </div>
-      );
+      return <div className="mt-10 text-center text-gray-500">Загрузка...</div>;
     }
 
     switch (activeTab) {
