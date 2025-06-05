@@ -22,6 +22,10 @@ export const ProfilePage = () => {
           <h2 className="text-xl font-bold">{user.first_name}</h2>
           <p className="text-gray-600">@{user.username}</p>
           <p className="text-gray-500">ID: {user.id}</p>
+          <pre className="text-xs bg-gray-100 p-2 rounded mt-4">
+  {JSON.stringify(window.Telegram?.WebApp?.initDataUnsafe, null, 2)}
+</pre>
+
         </div>
       )}
     </div>
