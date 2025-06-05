@@ -1,3 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Убираем прелоадер от Vite */
+#root:empty::before {
+  content: none !important;
+  display: none !important;
+}
