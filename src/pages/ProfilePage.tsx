@@ -1,9 +1,12 @@
+type TelegramUser = {
+  telegram_id: number;
+  first_name: string;
+  username?: string;
+  photo_url?: string;
+};
+
 type ProfilePageProps = {
-  user: {
-    first_name: string;
-    username?: string;
-    photo_url?: string;
-  };
+  user: TelegramUser;
 };
 
 export const ProfilePage = ({ user }: ProfilePageProps) => {
