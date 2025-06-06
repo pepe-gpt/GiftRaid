@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import type { TelegramUser } from '../types';
 
 interface BattleMiniGameProps {
-  bossId: number;
+  bossId: string; // ✅ UUID!
   user: TelegramUser;
   onDamage: (damage: number) => void;
 }
@@ -94,40 +94,19 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
 
     const roundedDamage = Math.round(total);
 
-    const { error } = await supabase.from('world_boss_damage').insert({
-      boss_id: bossId,
-      telegram_id: user.id, // 🛠 исправлено здесь
-      damage: roundedDamage,
+    const { error } = await supabase.rpc('attack_world_boss', {
+      boss_id_input: bossId,
+      telegram_id_input: user.id,
+      damage_input: roundedDamage,
     });
-    // 🔥 Отправляем урон в Supabase
-const { error: insertError } = await supabase.from('world_boss_damage').insert({
-  boss_id: bossId,
-  telegram_id: user.id,
-  damage: roundedDamage,
-});
-
-if (insertError) {
-  console.error("Ошибка при отправке урона:", insertError.message);
-  setResult("⚠️ Ошибка при отправке урона");
-  return;
-}
-
-// 🔁 Обновляем HP у босса
-const { error: updateError } = await supabase.rpc('decrease_boss_hp', {
-  boss_id_input: bossId,
-  damage_input: roundedDamage
-});
-
-if (updateError) {
-  console.error("Ошибка при обновлении HP босса:", updateError.message);
-}
 
     if (error) {
-      console.error('Ошибка при отправке урона:', error.message);
-      setResult('⚠️ Ошибка при отправке урона');
-    } else {
-      onDamage(roundedDamage);
+      console.error('❌ Ошибка при атаке:', error.message);
+      setResult('⚠️ Ошибка при атаке');
+      return;
     }
+
+    onDamage(roundedDamage);
   };
 
   useEffect(() => {

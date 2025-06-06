@@ -87,16 +87,13 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
 
       {!boss.is_defeated && (
         <BattleMiniGame
-  bossId={boss.id}
+  bossId={String(boss.id)}
   user={user}
   onDamage={(damage) => {
-    setBoss((prev) =>
-      prev ? { ...prev, current_hp: Math.max(0, prev.current_hp - damage) } : prev
-    );
+    console.log(`Урон по боссу: ${damage}`);
+    // здесь позже будет логика отправки урона в базу
   }}
 />
-
-
 
       )}
 
