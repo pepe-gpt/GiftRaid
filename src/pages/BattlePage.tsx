@@ -89,10 +89,13 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
         <BattleMiniGame
   bossId={boss.id}
   user={user}
-  onDamage={() => {
-    fetchBoss(); 
+  onDamage={(damage) => {
+    setBoss((prev) =>
+      prev ? { ...prev, current_hp: Math.max(0, prev.current_hp - damage) } : prev
+    );
   }}
 />
+
 
 
       )}
