@@ -24,6 +24,7 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
   const [boss, setBoss] = useState<WorldBoss | null>(null);
   const [loading, setLoading] = useState(true);
   const [timer, setTimer] = useState('');
+  const [isHit, setIsHit] = useState(false);
 
   const fetchBoss = async () => {
     const { data } = await supabase
@@ -56,6 +57,13 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
     return () => clearInterval(interval);
   }, [boss]);
 
+  const handleDamage = async (_damage: number) => {
+  setIsHit(true);
+  setTimeout(() => setIsHit(false), 300);
+  await fetchBoss(); // сразу обновляем HP из базы
+};
+
+
   if (loading || !boss) return <div className="p-4 text-center">Загрузка...</div>;
 
   return (
@@ -66,13 +74,13 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
         <img
           src={boss.is_defeated ? boss.defeated_image_url : boss.alive_image_url}
           alt="Босс"
-          className="w-64 h-64 object-contain"
+          className={`w-64 h-64 object-contain ${isHit ? 'animate-shake animate-flash' : ''}`}
         />
       </div>
 
       <div className="bg-gray-300 h-6 w-full rounded mb-2 overflow-hidden">
         <div
-          className="bg-red-600 h-full"
+          className="bg-red-600 h-full transition-all duration-300"
           style={{ width: `${(boss.current_hp / boss.max_hp) * 100}%` }}
         ></div>
       </div>
@@ -87,14 +95,10 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
 
       {!boss.is_defeated && (
         <BattleMiniGame
-  bossId={String(boss.id)}
-  user={user}
-  onDamage={(damage) => {
-    console.log(`Урон по боссу: ${damage}`);
-    // здесь позже будет логика отправки урона в базу
-  }}
-/>
-
+          bossId={String(boss.id)}
+          user={user}
+          onDamage={handleDamage}
+        />
       )}
 
       <div className="mt-6 text-center text-sm text-gray-400">
