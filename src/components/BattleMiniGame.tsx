@@ -1,5 +1,6 @@
 // src/components/BattleMiniGame.tsx
 import { useEffect, useRef, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import type { TelegramUser } from '../types';
 
 interface BattleMiniGameProps {
@@ -15,9 +16,9 @@ interface Zone {
 
 const getRandomZoneSize = () => {
   const roll = Math.random();
-  if (roll < 0.1) return 0.5; // маленькая зона
-  if (roll < 0.5) return 1.0; // средняя зона
-  return 1.5; // большая зона
+  if (roll < 0.1) return 0.5;
+  if (roll < 0.5) return 1.0;
+  return 1.5;
 };
 
 const getRandomSpeedMultiplier = () => {
@@ -69,7 +70,7 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
     }, 16);
   };
 
-  const stopGame = () => {
+  const stopGame = async () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     setIsActive(false);
 
@@ -91,7 +92,21 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
       setResult(`✅ Урон: ${Math.round(total)}`);
     }
 
-    onDamage(Math.round(total));
+    const roundedDamage = Math.round(total);
+
+    // 🔥 Отправляем урон в Supabase
+    const { error } = await supabase.from('world_boss_damage').insert({
+      boss_id: bossId,
+      user_id: user.telegram_id,
+      damage: roundedDamage,
+    });
+
+    if (error) {
+      console.error("Ошибка при отправке урона:", error.message);
+      setResult("⚠️ Ошибка при отправке урона");
+    } else {
+      onDamage(roundedDamage); // Сообщаем родителю, что урон нанесён
+    }
   };
 
   useEffect(() => {

@@ -89,11 +89,11 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
         <BattleMiniGame
   bossId={boss.id}
   user={user}
-  onDamage={(damage) => {
-    console.log(`Урон по боссу: ${damage}`);
-    // здесь позже будет логика отправки урона в базу
+  onDamage={() => {
+    fetchBoss(); 
   }}
 />
+
 
       )}
 
