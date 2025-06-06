@@ -1,12 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 
-interface Indicator {
-  id: number;
-  x: number;
-  speed: number;
-  direction: number;
-}
-
 interface Zone {
   start: number;
   end: number;
@@ -27,67 +20,44 @@ const getRandomSpeedMultiplier = () => {
   return 0.9;
 };
 
-const getRandomIndicatorCount = () => {
-  const roll = Math.random();
-  if (roll < 0.01) return 3;
-  if (roll < 0.10) return 2;
-  return 1;
-};
-
 export const BattlePage = () => {
-  const [indicators, setIndicators] = useState<Indicator[]>([]);
-  const [zones, setZones] = useState<Zone[]>([]);
+  const [x, setX] = useState(0);
+  const [zone, setZone] = useState<Zone>({ start: 40, end: 50 });
   const [result, setResult] = useState<string | null>(null);
   const [isActive, setIsActive] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
- 
+  const directionRef = useRef(1);
+  const speedRef = useRef(1.5);
 
   const baseSpeed = 1.5;
   const baseDamage = 10;
 
   const startGame = () => {
     setResult(null);
-    const count = getRandomIndicatorCount();
+    setIsActive(true);
+    setX(0);
+    directionRef.current = 1;
+
     const zoneSizeMultiplier = getRandomZoneSize();
     const speedMultiplier = getRandomSpeedMultiplier();
+    const zoneWidth = 10 * zoneSizeMultiplier;
+    const zoneStart = Math.random() * (100 - zoneWidth);
 
-    const zoneWidth = 10 * zoneSizeMultiplier; // %
-    const gap = 20;
-    const zoneSpacing = 100 / count;
-
-    const generatedZones: Zone[] = Array.from({ length: count }, (_, i) => {
-      const start = zoneSpacing * i + gap / 2;
-      return {
-        start,
-        end: start + zoneWidth,
-      };
-    });
-
-    const generatedIndicators: Indicator[] = Array.from({ length: count }, (_, i) => {
-      return {
-        id: i,
-        x: i % 2 === 0 ? 0 : 100,
-        speed: baseSpeed * speedMultiplier * (0.95 + Math.random() * 0.1),
-        direction: i % 2 === 0 ? 1 : -1,
-      };
-    });
-
-    setZones(generatedZones);
-    setIndicators(generatedIndicators);
-    setIsActive(true);
+    setZone({ start: zoneStart, end: zoneStart + zoneWidth });
+    speedRef.current = baseSpeed * speedMultiplier;
 
     intervalRef.current = setInterval(() => {
-      setIndicators(prev => prev.map(ind => {
-        let newX = ind.x + ind.direction * ind.speed;
-        if (newX >= 100) {
-          newX = 100;
-          ind.direction = -1;
-        } else if (newX <= 0) {
-          newX = 0;
-          ind.direction = 1;
+      setX(prev => {
+        let next = prev + directionRef.current * speedRef.current;
+        if (next >= 100) {
+          next = 100;
+          directionRef.current = -1;
+        } else if (next <= 0) {
+          next = 0;
+          directionRef.current = 1;
         }
-        return { ...ind, x: newX };
-      }));
+        return next;
+      });
     }, 16);
   };
 
@@ -95,17 +65,13 @@ export const BattlePage = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     setIsActive(false);
 
-    const hits = indicators.filter((ind, i) => {
-      const z = zones[i];
-      return ind.x >= z.start && ind.x <= z.end;
-    });
+    const hit = x >= zone.start && x <= zone.end;
 
-    if (hits.length !== indicators.length) return setResult('❌ Промах!');
+    if (!hit) return setResult('❌ Промах!');
 
-    const sizeBonus = ((1.5 - (zones[0].end - zones[0].start) / 10) / 1.0) * 200;
-    const speedBonus = ((indicators[0].speed / baseSpeed - 1.0) / 0.4) * 100;
-    const multi = indicators.length;
-    let total = baseDamage * (1 + (sizeBonus + speedBonus) / 100) * multi;
+    const sizeBonus = ((1.5 - (zone.end - zone.start) / 10) / 1.0) * 200;
+    const speedBonus = ((speedRef.current / baseSpeed - 1.0) / 0.4) * 100;
+    let total = baseDamage * (1 + (sizeBonus + speedBonus) / 100);
 
     if (Math.random() < 0.05) {
       total *= 2.5;
@@ -136,23 +102,17 @@ export const BattlePage = () => {
 
       {isActive && (
         <div className="relative w-[300px] h-10 mt-6 bg-gray-300 rounded overflow-hidden border border-black">
-          {zones.map((zone, i) => (
-            <div
-              key={`zone-${i}`}
-              className="absolute top-0 h-full bg-green-400 opacity-60"
-              style={{
-                left: `${zone.start}%`,
-                width: `${zone.end - zone.start}%`,
-              }}
-            />
-          ))}
-          {indicators.map((ind) => (
-            <div
-              key={`ind-${ind.id}`}
-              className="absolute top-0 h-full w-[4px] bg-black"
-              style={{ left: `${ind.x}%` }}
-            />
-          ))}
+          <div
+            className="absolute top-0 h-full bg-green-400 opacity-60"
+            style={{
+              left: `${zone.start}%`,
+              width: `${zone.end - zone.start}%`,
+            }}
+          />
+          <div
+            className="absolute top-0 h-full w-[4px] bg-black"
+            style={{ left: `${x}%` }}
+          />
         </div>
       )}
 
