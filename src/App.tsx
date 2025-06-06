@@ -1,25 +1,22 @@
 import { useEffect, useState } from "react";
 import { saveTelegramUser } from "./lib/auth";
 import { ProfilePage } from "./pages/ProfilePage";
-import { BattlePage } from "./pages/BattlePage"; // ✅ добавляем
+import { BattlePage } from "./pages/BattlePage";
+import { WorldBossPage } from "./pages/WorldBossPage";
 import { BottomNav } from "./components/BottomNav";
-
-type Tab = "quests" | "raids" | "battle" | "shop" | "profile";
+import type { Tab } from "./types"; // ✅ обновлён путь
 
 function App() {
   const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<Tab>("profile");
+  const [activeTab, setActiveTab] = useState<Tab>("boss");
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
     const tgUser = tg?.initDataUnsafe?.user;
 
     if (tgUser) {
-      console.log("Пользователь Telegram:", tgUser);
       setUser(tgUser);
       saveTelegramUser(tgUser);
-    } else {
-      console.log("Telegram WebApp user не найден");
     }
   }, []);
 
@@ -30,7 +27,9 @@ function App() {
       case "profile":
         return <ProfilePage user={user} />;
       case "battle":
-        return <BattlePage />; // ✅ подключаем реальную страницу битвы
+        return <BattlePage />;
+      case "boss":
+        return <WorldBossPage />;
       case "quests":
         return <div className="text-center p-4">Задания (заглушка)</div>;
       case "raids":

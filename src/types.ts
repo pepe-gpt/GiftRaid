@@ -1,0 +1,1 @@
+export type Tab = 'quests' | 'raids' | 'battle' | 'shop' | 'profile' | 'boss';
