@@ -1,4 +1,6 @@
-type TelegramUser = {
+import React from "react";
+
+export type TelegramUser = {
   telegram_id: number;
   first_name: string;
   username?: string;
@@ -9,7 +11,7 @@ type ProfilePageProps = {
   user: TelegramUser;
 };
 
-export const ProfilePage = ({ user }: ProfilePageProps) => {
+export const ProfilePage: React.FC<ProfilePageProps> = ({ user }) => {
   if (!user) return <div className="text-center mt-10">Пользователь не найден</div>;
 
   return (

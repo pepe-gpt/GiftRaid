@@ -1,5 +1,5 @@
 import React from "react";
-import type { Tab } from "../types"; // ✅ правильный путь и type import
+import type { Tab } from "../types";
 
 interface Props {
   activeTab: Tab;
@@ -12,10 +12,9 @@ export const BottomNav: React.FC<Props> = ({ activeTab, setActiveTab }) => {
       {[
         { key: "quests", label: "Задания" },
         { key: "raids", label: "Рейды" },
-        { key: "battle", label: "Битва" },
+        { key: "battle", label: "Битва" }, 
         { key: "shop", label: "Магазин" },
         { key: "profile", label: "Профиль" },
-        { key: "boss", label: "Босс" },
       ].map((item) => (
         <button
           key={item.key}
