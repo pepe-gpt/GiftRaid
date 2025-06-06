@@ -99,6 +99,28 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
       telegram_id: user.id, // 🛠 исправлено здесь
       damage: roundedDamage,
     });
+    // 🔥 Отправляем урон в Supabase
+const { error: insertError } = await supabase.from('world_boss_damage').insert({
+  boss_id: bossId,
+  telegram_id: user.id,
+  damage: roundedDamage,
+});
+
+if (insertError) {
+  console.error("Ошибка при отправке урона:", insertError.message);
+  setResult("⚠️ Ошибка при отправке урона");
+  return;
+}
+
+// 🔁 Обновляем HP у босса
+const { error: updateError } = await supabase.rpc('decrease_boss_hp', {
+  boss_id_input: bossId,
+  damage_input: roundedDamage
+});
+
+if (updateError) {
+  console.error("Ошибка при обновлении HP босса:", updateError.message);
+}
 
     if (error) {
       console.error('Ошибка при отправке урона:', error.message);
