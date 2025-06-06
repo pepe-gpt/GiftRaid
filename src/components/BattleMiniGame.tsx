@@ -94,18 +94,17 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
 
     const roundedDamage = Math.round(total);
 
-    // 🔥 Отправляем урон в Supabase
     const { error } = await supabase.from('world_boss_damage').insert({
       boss_id: bossId,
-      user_id: user.telegram_id,
+      telegram_id: user.id, // 🛠 исправлено здесь
       damage: roundedDamage,
     });
 
     if (error) {
-      console.error("Ошибка при отправке урона:", error.message);
-      setResult("⚠️ Ошибка при отправке урона");
+      console.error('Ошибка при отправке урона:', error.message);
+      setResult('⚠️ Ошибка при отправке урона');
     } else {
-      onDamage(roundedDamage); // Сообщаем родителю, что урон нанесён
+      onDamage(roundedDamage);
     }
   };
 
