@@ -1,4 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+// src/components/BattleMiniGame.tsx
+import { useEffect, useRef, useState } from 'react';
+import type { TelegramUser } from '../types';
+
+interface BattleMiniGameProps {
+  bossId: number;
+  user: TelegramUser;
+  onDamage: (damage: number) => void;
+}
 
 interface Zone {
   start: number;
@@ -8,8 +16,8 @@ interface Zone {
 const getRandomZoneSize = () => {
   const roll = Math.random();
   if (roll < 0.1) return 0.5; // маленькая зона
-  if (roll < 0.5) return 1;   // средняя зона
-  return 1.5;                 // большая зона
+  if (roll < 0.5) return 1.0; // средняя зона
+  return 1.5; // большая зона
 };
 
 const getRandomSpeedMultiplier = () => {
@@ -20,7 +28,7 @@ const getRandomSpeedMultiplier = () => {
   return 0.9;
 };
 
-export const BattleMiniGame = ({ onDamage }: { onDamage: (damage: number) => void }) => {
+export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, onDamage }) => {
   const [x, setX] = useState(0);
   const [zone, setZone] = useState<Zone>({ start: 40, end: 50 });
   const [result, setResult] = useState<string | null>(null);
@@ -47,7 +55,7 @@ export const BattleMiniGame = ({ onDamage }: { onDamage: (damage: number) => voi
     speedRef.current = baseSpeed * speedMultiplier;
 
     intervalRef.current = setInterval(() => {
-      setX(prev => {
+      setX((prev) => {
         let next = prev + directionRef.current * speedRef.current;
         if (next >= 100) {
           next = 100;
@@ -69,7 +77,6 @@ export const BattleMiniGame = ({ onDamage }: { onDamage: (damage: number) => voi
 
     if (!hit) {
       setResult('❌ Промах!');
-      onDamage(0);
       return;
     }
 
@@ -108,10 +115,7 @@ export const BattleMiniGame = ({ onDamage }: { onDamage: (damage: number) => voi
         <div className="relative w-[300px] h-10 mt-6 bg-gray-300 rounded overflow-hidden border border-black">
           <div
             className="absolute top-0 h-full bg-green-400 opacity-60"
-            style={{
-              left: `${zone.start}%`,
-              width: `${zone.end - zone.start}%`,
-            }}
+            style={{ left: `${zone.start}%`, width: `${zone.end - zone.start}%` }}
           />
           <div
             className="absolute top-0 h-full w-[4px] bg-black"
@@ -129,8 +133,7 @@ export const BattleMiniGame = ({ onDamage }: { onDamage: (damage: number) => voi
         </button>
       )}
 
-      {result && <div className="mt-6 text-xl font-semibold text-center">{result}</div>}
+      {result && <div className="mt-4 text-center text-lg font-semibold">{result}</div>}
     </div>
   );
 };
-
