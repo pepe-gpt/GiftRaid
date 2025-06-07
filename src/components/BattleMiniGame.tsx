@@ -1,3 +1,5 @@
+// Обновлённый BattleMiniGame.tsx с фиксом ошибки 409, корректным сбросом комбо и отображением только активного комбо
+
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { TelegramUser } from '../types';
@@ -96,24 +98,22 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
 
     const hit = x >= zone.start && x <= zone.end;
 
-    let currentCombo = 0;
     const { data: existingCombo } = await supabase
-  .from('world_boss_combos')
-  .select('*')
-  .eq('user_id', user.id)
-  .eq('boss_id', bossId)
-  .maybeSingle(); // вместо single()
+      .from('world_boss_combos')
+      .select('combo_count')
+      .eq('user_id', user.id)
+      .eq('boss_id', bossId)
+      .maybeSingle();
 
-    if (existingCombo) {
-      currentCombo = existingCombo.combo_count;
-    }
+    let currentCombo = existingCombo?.combo_count || 0;
 
     if (!hit) {
       setResult('❌ Промах!');
-      await supabase
-        .from('world_boss_combos')
-        .upsert({ user_id: user.id, boss_id: bossId, combo_count: 0 });
       setCombo(0);
+      await supabase.from('world_boss_combos').upsert(
+        { user_id: user.id, boss_id: bossId, combo_count: 0 },
+        { onConflict: 'user_id,boss_id' }
+      );
       return;
     }
 
@@ -129,8 +129,8 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
 
     const critChance = 0.05 + critChanceBonus;
     const critMultiplier = 2.5 + critMultiplierBonus;
-
     const isCrit = Math.random() < critChance;
+
     if (isCrit) {
       total *= critMultiplier;
       setResult(`💥 Крит! Combo x${currentCombo} — Урон: ${Math.round(total)}`);
@@ -138,19 +138,12 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
       setResult(`✅ Combo x${currentCombo} — Урон: ${Math.round(total)}`);
     }
 
-    await supabase.from('world_boss_combos').upsert(
-  {
-    user_id: user.id,
-    boss_id: bossId,
-    combo_count: currentCombo,
-  },
-  {
-    onConflict: 'user_id,boss_id',
-  }
-);
-
-
     setCombo(currentCombo);
+
+    await supabase.from('world_boss_combos').upsert(
+      { user_id: user.id, boss_id: bossId, combo_count: currentCombo },
+      { onConflict: 'user_id,boss_id' }
+    );
 
     const roundedDamage = Math.round(total);
     const { error } = await supabase.rpc('attack_world_boss', {
@@ -184,7 +177,7 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
           >
             Атаковать
           </button>
-          {combo > 2 && (
+          {combo >= 3 && (
             <div className="mt-2 text-sm text-yellow-600 font-semibold">
               Комбо x{combo} активен!
             </div>
