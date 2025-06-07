@@ -20,7 +20,6 @@ export const WorldBossPage = () => {
   const [loading, setLoading] = useState(true);
   const [timer, setTimer] = useState('—');
 
-  // Получаем UTC-время сервера
   const fetchBoss = async () => {
     const { data: nowData, error: nowError } = await supabase.rpc('get_utc_now');
     if (nowError || !nowData) {
@@ -31,13 +30,12 @@ export const WorldBossPage = () => {
     const now = new Date(nowData);
     const currentDay = now.getUTCDay(); // 0 (вс) до 6 (сб)
 
-    // Получаем последнего активного босса на сегодня
     const { data, error } = await supabase
       .from('world_bosses')
       .select('*')
       .eq('day', currentDay)
       .lte('start_at', now.toISOString())
-      .order('start_at', { ascending: false })
+      .order('start_at', { ascending: false }) // <-- правильное поле
       .limit(1)
       .single();
 
@@ -49,9 +47,12 @@ export const WorldBossPage = () => {
     setLoading(false);
   };
 
-  // Таймер до следующего босса (или конца текущего)
   const updateTimer = () => {
-    if (!boss || !boss.end_time) return setTimer('Ожидается следующий босс...');
+    if (!boss || !boss.end_time) {
+      setTimer('Ожидается следующий босс...');
+      return;
+    }
+
     const end = new Date(boss.end_time).getTime();
     const now = Date.now();
     const diff = end - now;
