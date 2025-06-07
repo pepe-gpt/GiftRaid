@@ -1,4 +1,7 @@
-// Обновлённый BattleMiniGame.tsx с фиксом ошибки 409, корректным сбросом комбо и отображением только активного комбо
+// BattleMiniGame.tsx с фиксами:
+// - Нет отображения Combo x1, x2
+// - Урон и крит рассчитываются строго по правилам
+// - Комбо отображается только с x3
 
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
@@ -36,15 +39,16 @@ function getComboBonuses(combo: number) {
   let critMultiplierBonus = 0;
   let totalMultiplierBonus = 0;
 
-  if ([3, 7, 15, 30, 50].includes(combo)) {
+  const thresholds = [3, 7, 15, 30, 50];
+  if (thresholds.includes(combo)) {
     flatBonus = 5;
     critChanceBonus = 0.1;
     critMultiplierBonus = 0.5;
   }
 
-  if (combo > 3) {
-    const extraMultipliers = Math.max(0, combo - [3, 7, 15, 30, 50].filter(n => n <= combo).pop()!);
-    totalMultiplierBonus = extraMultipliers * 0.1;
+  const lastThreshold = thresholds.filter(n => n <= combo).pop() ?? 0;
+  if (combo > lastThreshold) {
+    totalMultiplierBonus = (combo - lastThreshold) * 0.1;
   }
 
   return { flatBonus, critChanceBonus, critMultiplierBonus, totalMultiplierBonus };
@@ -62,6 +66,8 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
 
   const baseSpeed = 1.5;
   const baseDamage = 10;
+  const baseCritChance = 0.05;
+  const baseCritMultiplier = 2.5;
 
   const startGame = () => {
     setResult(null);
@@ -118,6 +124,8 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
     }
 
     currentCombo += 1;
+    setCombo(currentCombo);
+
     const { flatBonus, critChanceBonus, critMultiplierBonus, totalMultiplierBonus } = getComboBonuses(currentCombo);
 
     const sizeBonus = ((1.5 - (zone.end - zone.start) / 10) / 1.0) * 200;
@@ -127,18 +135,16 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
     total *= 1 + (sizeBonus + speedBonus) / 100;
     total *= 1 + totalMultiplierBonus;
 
-    const critChance = 0.05 + critChanceBonus;
-    const critMultiplier = 2.5 + critMultiplierBonus;
+    const critChance = baseCritChance + critChanceBonus;
+    const critMultiplier = baseCritMultiplier + critMultiplierBonus;
     const isCrit = Math.random() < critChance;
 
     if (isCrit) {
       total *= critMultiplier;
-      setResult(`💥 Крит! Combo x${currentCombo} — Урон: ${Math.round(total)}`);
+      setResult(`💥 Крит! Урон: ${Math.round(total)}`);
     } else {
-      setResult(`✅ Combo x${currentCombo} — Урон: ${Math.round(total)}`);
+      setResult(`✅ Урон: ${Math.round(total)}`);
     }
-
-    setCombo(currentCombo);
 
     await supabase.from('world_boss_combos').upsert(
       { user_id: user.id, boss_id: bossId, combo_count: currentCombo },
