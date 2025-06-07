@@ -30,15 +30,16 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
     if (!nowData) return;
     const now = new Date(nowData + 'Z');
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('world_bosses')
-      .select('*', { head: false }) // 👈 обязательно первым
-      .lte('start_at', now.toISOString())
-      .gt('end_time', now.toISOString())
-      .eq('is_defeated', false)
+      .select('*')
+      .filter('start_at', 'lte', now.toISOString())
+      .filter('end_time', 'gt', now.toISOString())
+      .filter('is_defeated', 'eq', false)
       .order('start_at', { ascending: false })
       .limit(1)
       .single();
+
 
     if (data) setBoss(data);
     setLoading(false);
