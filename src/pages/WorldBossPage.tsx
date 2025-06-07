@@ -27,22 +27,18 @@ export const WorldBossPage = () => {
       return;
     }
 
-    const now = new Date(nowData).toISOString();
+    const now = new Date(nowData + 'Z'); // теперь это UTC
 
-    // 1. Ищем активного босса (уже начался, но ещё не закончился, и не убит)
-    const { data: activeBoss, error: activeError } = await supabase
+    // 1. Пытаемся найти активного босса
+    const { data: activeBoss } = await supabase
       .from('world_bosses')
       .select('*')
-      .lte('start_at', now)
-      .gt('end_time', now)
+      .lte('start_at', now.toISOString())
+      .gt('end_time', now.toISOString())
       .eq('is_defeated', false)
       .order('start_at', { ascending: false })
       .limit(1)
       .single();
-
-    if (activeError) {
-      console.error('Ошибка получения активного босса:', activeError.message);
-    }
 
     if (activeBoss) {
       setBoss(activeBoss);
@@ -50,18 +46,14 @@ export const WorldBossPage = () => {
       return;
     }
 
-    // 2. Если активного нет — ищем следующего по времени старта
-    const { data: nextBoss, error: nextError } = await supabase
+    // 2. Если активного нет — ищем ближайшего в будущем
+    const { data: nextBoss } = await supabase
       .from('world_bosses')
       .select('*')
-      .gte('start_at', now)
+      .gte('start_at', now.toISOString())
       .order('start_at', { ascending: true })
       .limit(1)
       .single();
-
-    if (nextError) {
-      console.error('Ошибка получения следующего босса:', nextError.message);
-    }
 
     if (nextBoss) {
       setBoss(nextBoss);
@@ -82,8 +74,8 @@ export const WorldBossPage = () => {
     const now = Date.now();
     const diff = end - now;
 
-    if (diff <= 0 || boss.is_defeated) {
-      setTimer('Битва завершена');
+    if (diff <= 0) {
+      setTimer('Ожидается следующий босс...');
     } else {
       const hours = Math.floor(diff / 3600000);
       const minutes = Math.floor((diff % 3600000) / 60000);
@@ -103,13 +95,15 @@ export const WorldBossPage = () => {
 
   if (loading || !boss) return <div className="p-4 text-center">Загрузка...</div>;
 
+  const isDead = boss.current_hp <= 0 || boss.is_defeated;
+
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold text-center mb-4">Мировой Босс</h1>
 
       <div className="flex justify-center mb-4">
         <img
-          src={boss.is_defeated ? boss.image_defeated : boss.image_alive}
+          src={isDead ? boss.image_defeated : boss.image_alive}
           alt="Босс"
           className="w-64 h-64 object-contain"
         />
@@ -117,17 +111,17 @@ export const WorldBossPage = () => {
 
       <div className="bg-gray-300 h-6 w-full rounded mb-2 overflow-hidden">
         <div
-          className="bg-red-600 h-full"
-          style={{ width: `${(boss.current_hp / boss.max_hp) * 100}%` }}
+          className="bg-red-600 h-full transition-all duration-300"
+          style={{ width: `${Math.max(0, (boss.current_hp / boss.max_hp) * 100)}%` }}
         ></div>
       </div>
 
       <p className="text-center text-sm text-gray-600 mb-2">
-        HP: {boss.current_hp} / {boss.max_hp}
+        HP: {Math.max(0, boss.current_hp)} / {boss.max_hp}
       </p>
 
       <p className="text-center text-sm text-gray-600 mb-4">
-        {boss.is_defeated ? 'Босс повержен!' : `До конца битвы: ${timer}`}
+        {isDead ? 'Босс повержен!' : `До конца битвы: ${timer}`}
       </p>
 
       <div className="mt-6 text-center text-sm text-gray-400">
