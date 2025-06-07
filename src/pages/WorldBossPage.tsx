@@ -27,17 +27,22 @@ export const WorldBossPage = () => {
       return;
     }
 
-    const now = new Date(nowData);
+    const now = new Date(nowData).toISOString();
 
-    // 1. Пытаемся найти активного босса
+    // 1. Ищем активного босса (уже начался, но ещё не закончился, и не убит)
     const { data: activeBoss, error: activeError } = await supabase
       .from('world_bosses')
       .select('*')
-      .lte('start_at', now.toISOString())
-      .gte('end_time', now.toISOString())
+      .lte('start_at', now)
+      .gt('end_time', now)
+      .eq('is_defeated', false)
       .order('start_at', { ascending: false })
       .limit(1)
       .single();
+
+    if (activeError) {
+      console.error('Ошибка получения активного босса:', activeError.message);
+    }
 
     if (activeBoss) {
       setBoss(activeBoss);
@@ -45,14 +50,18 @@ export const WorldBossPage = () => {
       return;
     }
 
-    // 2. Если активного нет — ищем ближайшего в будущем
+    // 2. Если активного нет — ищем следующего по времени старта
     const { data: nextBoss, error: nextError } = await supabase
       .from('world_bosses')
       .select('*')
-      .gte('start_at', now.toISOString())
+      .gte('start_at', now)
       .order('start_at', { ascending: true })
       .limit(1)
       .single();
+
+    if (nextError) {
+      console.error('Ошибка получения следующего босса:', nextError.message);
+    }
 
     if (nextBoss) {
       setBoss(nextBoss);
@@ -73,8 +82,8 @@ export const WorldBossPage = () => {
     const now = Date.now();
     const diff = end - now;
 
-    if (diff <= 0) {
-      setTimer('Ожидается следующий босс...');
+    if (diff <= 0 || boss.is_defeated) {
+      setTimer('Битва завершена');
     } else {
       const hours = Math.floor(diff / 3600000);
       const minutes = Math.floor((diff % 3600000) / 60000);
