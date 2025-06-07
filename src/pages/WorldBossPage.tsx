@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
-
 interface WorldBoss {
   id: number;
   name: string;
@@ -20,10 +19,20 @@ export const WorldBossPage = () => {
   const [timer, setTimer] = useState('');
 
   const fetchBoss = async () => {
+    // Получаем текущее время с сервера Supabase
+    const { data: nowData, error: nowError } = await supabase.rpc('get_utc_now');
+    if (nowError || !nowData) {
+      console.error('Ошибка получения времени с сервера:', nowError);
+      return;
+    }
+    const nowUtc = new Date(nowData);
+
+    // Получаем активного босса, чей старт уже наступил
     const { data, error } = await supabase
       .from('world_bosses')
       .select('*')
-      .order('start_time', { ascending: false })
+      .lte('start_at', nowUtc.toISOString())
+      .order('start_at', { ascending: false })
       .limit(1)
       .single();
 
@@ -46,6 +55,9 @@ export const WorldBossPage = () => {
 
   useEffect(() => {
     fetchBoss();
+  }, []);
+
+  useEffect(() => {
     const timerInterval = setInterval(updateTimer, 1000);
     return () => clearInterval(timerInterval);
   }, [boss]);
