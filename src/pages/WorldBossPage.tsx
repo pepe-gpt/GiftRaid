@@ -28,22 +28,38 @@ export const WorldBossPage = () => {
     }
 
     const now = new Date(nowData);
-    const currentDay = now.getUTCDay();
 
-    const { data, error } = await supabase
+    // 1. Пытаемся найти активного босса
+    const { data: activeBoss, error: activeError } = await supabase
       .from('world_bosses')
       .select('*')
-      .eq('day', currentDay)
       .lte('start_at', now.toISOString())
+      .gte('end_time', now.toISOString())
       .order('start_at', { ascending: false })
       .limit(1)
       .single();
 
-    if (error) {
-      console.error('Ошибка получения босса:', error.message);
+    if (activeBoss) {
+      setBoss(activeBoss);
+      setLoading(false);
+      return;
     }
 
-    if (data) setBoss(data);
+    // 2. Если активного нет — ищем ближайшего в будущем
+    const { data: nextBoss, error: nextError } = await supabase
+      .from('world_bosses')
+      .select('*')
+      .gte('start_at', now.toISOString())
+      .order('start_at', { ascending: true })
+      .limit(1)
+      .single();
+
+    if (nextBoss) {
+      setBoss(nextBoss);
+    } else {
+      console.warn('Боссов не найдено');
+    }
+
     setLoading(false);
   };
 
