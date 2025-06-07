@@ -5,13 +5,13 @@ import { BattleMiniGame } from '../components/BattleMiniGame';
 import type { TelegramUser } from '../types';
 
 interface WorldBoss {
-  id: number;
+  id: string;
   name: string;
   max_hp: number;
   current_hp: number;
   reward_pool: number;
-  alive_image_url: string;
-  defeated_image_url: string;
+  image_alive: string;
+  image_defeat: string;
   is_defeated: boolean;
   end_time: string;
 }
@@ -27,12 +27,17 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
   const [isHit, setIsHit] = useState(false);
 
   const fetchBoss = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('world_bosses')
       .select('*')
       .order('start_at', { ascending: false })
       .limit(1)
       .single();
+
+    if (error) {
+      console.error('Ошибка получения босса:', error);
+      return;
+    }
 
     if (data) setBoss(data);
     setLoading(false);
@@ -53,16 +58,18 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
 
   useEffect(() => {
     fetchBoss();
+  }, []);
+
+  useEffect(() => {
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, [boss]);
 
   const handleDamage = async (_damage: number) => {
-  setIsHit(true);
-  setTimeout(() => setIsHit(false), 300);
-  await fetchBoss(); // сразу обновляем HP из базы
-};
-
+    setIsHit(true);
+    setTimeout(() => setIsHit(false), 300);
+    await fetchBoss(); // обновить HP после удара
+  };
 
   if (loading || !boss) return <div className="p-4 text-center">Загрузка...</div>;
 
@@ -72,7 +79,7 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
 
       <div className="flex justify-center mb-4">
         <img
-          src={boss.is_defeated ? boss.defeated_image_url : boss.alive_image_url}
+          src={boss.is_defeated ? boss.image_defeat : boss.image_alive}
           alt="Босс"
           className={`w-64 h-64 object-contain ${isHit ? 'animate-shake animate-flash' : ''}`}
         />
@@ -90,20 +97,20 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
       </p>
 
       <p className="text-center text-sm text-gray-600 mb-4">
-        До следующего босса: {timer}
+        {boss.is_defeated ? 'Босс повержен!' : `До конца битвы: ${timer}`}
       </p>
 
       {!boss.is_defeated && (
         <BattleMiniGame
-          bossId={String(boss.id)}
+          bossId={boss.id}
           user={user}
           onDamage={handleDamage}
         />
       )}
-      
-      
 
+      <div className="mt-6 text-center text-sm text-gray-400">
+        Вознаграждение: {(boss.reward_pool || 0).toLocaleString()} токенов
+      </div>
     </div>
-    
   );
 };
