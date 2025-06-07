@@ -100,10 +100,10 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
           onDamage={handleDamage}
         />
       )}
+      
+      
 
-      <div className="mt-6 text-center text-sm text-gray-400">
-        Вознаграждение: {boss.reward_pool.toLocaleString()} токенов
-      </div>
     </div>
+    
   );
 };

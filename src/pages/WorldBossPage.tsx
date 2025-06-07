@@ -28,14 +28,14 @@ export const WorldBossPage = () => {
     }
 
     const now = new Date(nowData);
-    const currentDay = now.getUTCDay(); // 0 (вс) до 6 (сб)
+    const currentDay = now.getUTCDay();
 
     const { data, error } = await supabase
       .from('world_bosses')
       .select('*')
       .eq('day', currentDay)
       .lte('start_at', now.toISOString())
-      .order('start_at', { ascending: false }) // <-- правильное поле
+      .order('start_at', { ascending: false })
       .limit(1)
       .single();
 
@@ -107,7 +107,6 @@ export const WorldBossPage = () => {
 
       <div className="mt-6 text-center text-sm text-gray-400">
         Вознаграждение: {(boss.reward_pool || 0).toLocaleString()} токенов
-
       </div>
     </div>
   );

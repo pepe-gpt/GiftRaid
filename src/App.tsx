@@ -1,7 +1,9 @@
+// ✅ Обновлённый App.tsx
 import { useEffect, useState } from "react";
 import { saveTelegramUser } from "./lib/auth";
 import { ProfilePage } from "./pages/ProfilePage";
 import { BattlePage } from "./pages/BattlePage";
+import { WorldBossPage } from "./pages/WorldBossPage";
 import { BottomNav } from "./components/BottomNav";
 import type { Tab } from "./types";
 
@@ -33,7 +35,7 @@ function App() {
       case "quests":
         return <div className="text-center p-4">Задания (заглушка)</div>;
       case "raids":
-        return <div className="text-center p-4">Рейды (заглушка)</div>;
+        return <WorldBossPage />;
       case "shop":
         return <div className="text-center p-4">Магазин (заглушка)</div>;
       default:
@@ -50,3 +52,16 @@ function App() {
 }
 
 export default App;
+
+
+// ✅ lib/supabase.ts (без изменений)
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = 'https://mecjaydtuxkvwrvnsqqj.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJI...'; // ключ уже указан
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+
+// ✅ Обновление строки в BattlePage.tsx (внизу)
+
