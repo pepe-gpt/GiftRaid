@@ -7,7 +7,7 @@ interface WorldBoss {
   day: number;
   start_at: string;
   image_alive: string;
-  image_defeat: string;
+  image_defeated: string;
   max_hp: number;
   current_hp: number;
   is_defeated: boolean;
@@ -84,7 +84,7 @@ export const WorldBossPage = () => {
 
       <div className="flex justify-center mb-4">
         <img
-          src={boss.is_defeated ? boss.image_defeat : boss.image_alive}
+          src={boss.is_defeated ? boss.image_defeated : boss.image_alive}
           alt="Босс"
           className="w-64 h-64 object-contain"
         />

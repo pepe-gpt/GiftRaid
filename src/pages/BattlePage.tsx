@@ -11,7 +11,7 @@ interface WorldBoss {
   current_hp: number;
   reward_pool: number;
   image_alive: string;
-  image_defeat: string;
+  image_defeated: string;
   is_defeated: boolean;
   end_time: string;
 }
@@ -79,7 +79,7 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
 
       <div className="flex justify-center mb-4">
         <img
-          src={boss.is_defeated ? boss.image_defeat : boss.image_alive}
+          src={boss.is_defeated ? boss.image_defeated : boss.image_alive}
           alt="Босс"
           className={`w-64 h-64 object-contain ${isHit ? 'animate-shake animate-flash' : ''}`}
         />
