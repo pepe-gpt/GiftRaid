@@ -32,17 +32,16 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
 
     const { data, error } = await supabase
       .from('world_bosses')
-      .select('*', { head: false, count: 'exact' })
+      .select('*', { head: false })
       .filter('start_at', 'lte', now.toISOString())
       .filter('end_time', 'gt', now.toISOString())
       .filter('is_defeated', 'eq', false)
       .order('start_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Ошибка получения босса:', error);
-      return;
     }
 
     if (data) setBoss(data);
@@ -82,7 +81,7 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
     if (!boss || boss.current_hp <= 0 || boss.is_defeated) return;
     setIsHit(true);
     setTimeout(() => setIsHit(false), 300);
-    await fetchBoss(); // обновляем HP
+    await fetchBoss();
   };
 
   if (loading || !boss) return <div className="p-4 text-center">Загрузка...</div>;
