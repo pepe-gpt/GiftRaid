@@ -30,7 +30,7 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
     const { data } = await supabase
       .from('world_bosses')
       .select('*')
-      .order('start_time', { ascending: false })
+      .order('start_at', { ascending: false })
       .limit(1)
       .single();
 
