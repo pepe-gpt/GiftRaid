@@ -32,7 +32,7 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
 
     const { data } = await supabase
       .from('world_bosses')
-      .select('*')
+      .select('*', { head: false }) // 👈 обязательно первым
       .lte('start_at', now.toISOString())
       .gt('end_time', now.toISOString())
       .eq('is_defeated', false)
