@@ -106,7 +106,8 @@ export const WorldBossPage = () => {
       </p>
 
       <div className="mt-6 text-center text-sm text-gray-400">
-        Вознаграждение: {boss.reward_pool?.toLocaleString() ?? 0} токенов
+        Вознаграждение: {(boss.reward_pool || 0).toLocaleString()} токенов
+
       </div>
     </div>
   );
