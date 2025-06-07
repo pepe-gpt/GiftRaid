@@ -27,9 +27,9 @@ export const WorldBossPage = () => {
       return;
     }
 
-    const now = new Date(nowData + 'Z'); // теперь это UTC
+    const now = new Date(nowData + 'Z'); // UTC
 
-    // 1. Пытаемся найти активного босса
+    // 1. Ищем активного босса
     const { data: activeBoss } = await supabase
       .from('world_bosses')
       .select('*')
@@ -46,7 +46,7 @@ export const WorldBossPage = () => {
       return;
     }
 
-    // 2. Если активного нет — ищем ближайшего в будущем
+    // 2. Ищем ближайшего будущего
     const { data: nextBoss } = await supabase
       .from('world_bosses')
       .select('*')
@@ -64,18 +64,24 @@ export const WorldBossPage = () => {
     setLoading(false);
   };
 
-  const updateTimer = () => {
+  const updateTimer = async () => {
     if (!boss || !boss.end_time) {
       setTimer('Ожидается следующий босс...');
       return;
     }
 
+    const { data: nowData, error: nowError } = await supabase.rpc('get_utc_now');
+    if (nowError || !nowData) {
+      console.error('Ошибка получения времени сервера:', nowError);
+      return;
+    }
+
+    const now = new Date(nowData + 'Z').getTime();
     const end = new Date(boss.end_time).getTime();
-    const now = Date.now();
     const diff = end - now;
 
-    if (diff <= 0) {
-      setTimer('Ожидается следующий босс...');
+    if (diff <= 0 || boss.current_hp <= 0 || boss.is_defeated) {
+      setTimer('Босс повержен!');
     } else {
       const hours = Math.floor(diff / 3600000);
       const minutes = Math.floor((diff % 3600000) / 60000);
@@ -121,7 +127,7 @@ export const WorldBossPage = () => {
       </p>
 
       <p className="text-center text-sm text-gray-600 mb-4">
-        {isDead ? 'Босс повержен!' : `До конца битвы: ${timer}`}
+        {timer}
       </p>
 
       <div className="mt-6 text-center text-sm text-gray-400">
