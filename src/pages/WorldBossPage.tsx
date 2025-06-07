@@ -1,4 +1,3 @@
-// ✅ WorldBossPage.tsx с синхронизацией по серверному времени
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
@@ -32,15 +31,19 @@ export const WorldBossPage = () => {
     const now = new Date(nowData + 'Z');
     setServerNow(now);
 
-    const { data: activeBoss } = await supabase
+    const { data: activeBoss, error: activeError } = await supabase
       .from('world_bosses')
-      .select('*')
-      .lte('start_at', now.toISOString())
-      .gt('end_time', now.toISOString())
+      .select('*', { head: false })
+      .filter('start_at', 'lte', now.toISOString())
+      .filter('end_time', 'gt', now.toISOString())
       .eq('is_defeated', false)
       .order('start_at', { ascending: false })
       .limit(1)
       .single();
+
+    if (activeError) {
+      console.error('Ошибка запроса активного босса:', activeError.message);
+    }
 
     if (activeBoss) {
       setBoss(activeBoss);
@@ -48,13 +51,17 @@ export const WorldBossPage = () => {
       return;
     }
 
-    const { data: nextBoss } = await supabase
+    const { data: nextBoss, error: nextError } = await supabase
       .from('world_bosses')
-      .select('*')
-      .gte('start_at', now.toISOString())
+      .select('*', { head: false })
+      .filter('start_at', 'gte', now.toISOString())
       .order('start_at', { ascending: true })
       .limit(1)
       .single();
+
+    if (nextError) {
+      console.error('Ошибка запроса следующего босса:', nextError.message);
+    }
 
     if (nextBoss) setBoss(nextBoss);
     else console.warn('Боссов не найдено');

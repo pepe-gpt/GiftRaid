@@ -32,7 +32,7 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
 
     const { data, error } = await supabase
       .from('world_bosses')
-      .select('*')
+      .select('*', { head: false, count: 'exact' })
       .filter('start_at', 'lte', now.toISOString())
       .filter('end_time', 'gt', now.toISOString())
       .filter('is_defeated', 'eq', false)
@@ -40,6 +40,10 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
       .limit(1)
       .single();
 
+    if (error) {
+      console.error('Ошибка получения босса:', error);
+      return;
+    }
 
     if (data) setBoss(data);
     setLoading(false);
