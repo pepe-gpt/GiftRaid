@@ -1,8 +1,3 @@
-// ✅ Оба компонента теперь используют только время с сервера Supabase.
-// ✅ Учитываются состояния HP, is_defeated, смена картинки и отключение урона.
-// ✅ Таймер обновляется по UTC времени с сервера, а не с клиента.
-
-// === BattlePage.tsx ===
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { BattleMiniGame } from '../components/BattleMiniGame';
@@ -29,13 +24,11 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [timer, setTimer] = useState('');
   const [isHit, setIsHit] = useState(false);
-  const [serverNow, setServerNow] = useState<Date | null>(null);
 
   const fetchBoss = async () => {
     const { data: nowData } = await supabase.rpc('get_utc_now');
     if (!nowData) return;
     const now = new Date(nowData + 'Z');
-    setServerNow(now);
 
     const { data } = await supabase
       .from('world_bosses')
@@ -51,15 +44,18 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
     setLoading(false);
   };
 
-  const updateTimer = () => {
-    if (!boss || !serverNow) return;
+  const updateTimer = async () => {
+    if (!boss) return;
+
+    const { data: nowData } = await supabase.rpc('get_utc_now');
+    if (!nowData) return;
+
+    const now = new Date(nowData + 'Z').getTime();
     const end = new Date(boss.end_time).getTime();
-    const now = new Date(serverNow.getTime() + 1000).getTime();
-    setServerNow(new Date(now));
     const diff = end - now;
 
-    if (diff <= 0) {
-      setTimer('Ожидается следующий босс...');
+    if (diff <= 0 || boss.current_hp <= 0 || boss.is_defeated) {
+      setTimer('Босс повержен!');
     } else {
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
@@ -75,13 +71,13 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
   useEffect(() => {
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [boss, serverNow]);
+  }, [boss]);
 
   const handleDamage = async () => {
     if (!boss || boss.current_hp <= 0 || boss.is_defeated) return;
     setIsHit(true);
     setTimeout(() => setIsHit(false), 300);
-    await fetchBoss();
+    await fetchBoss(); // обновляем HP
   };
 
   if (loading || !boss) return <div className="p-4 text-center">Загрузка...</div>;
@@ -110,9 +106,7 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
         HP: {Math.max(0, boss.current_hp)} / {boss.max_hp}
       </p>
 
-      <p className="text-center text-sm text-gray-600 mb-4">
-        {isDead ? 'Босс повержен!' : `До конца битвы: ${timer}`}
-      </p>
+      <p className="text-center text-sm text-gray-600 mb-4">{timer}</p>
 
       {!isDead && (
         <BattleMiniGame bossId={String(boss.id)} user={user} onDamage={handleDamage} />

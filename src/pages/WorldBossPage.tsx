@@ -1,3 +1,4 @@
+// ✅ WorldBossPage.tsx с синхронизацией по серверному времени
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
@@ -19,6 +20,7 @@ export const WorldBossPage = () => {
   const [boss, setBoss] = useState<WorldBoss | null>(null);
   const [loading, setLoading] = useState(true);
   const [timer, setTimer] = useState('—');
+  const [serverNow, setServerNow] = useState<Date | null>(null);
 
   const fetchBoss = async () => {
     const { data: nowData, error: nowError } = await supabase.rpc('get_utc_now');
@@ -27,9 +29,9 @@ export const WorldBossPage = () => {
       return;
     }
 
-    const now = new Date(nowData + 'Z'); // UTC
+    const now = new Date(nowData + 'Z');
+    setServerNow(now);
 
-    // 1. Ищем активного босса
     const { data: activeBoss } = await supabase
       .from('world_bosses')
       .select('*')
@@ -46,7 +48,6 @@ export const WorldBossPage = () => {
       return;
     }
 
-    // 2. Ищем ближайшего будущего
     const { data: nextBoss } = await supabase
       .from('world_bosses')
       .select('*')
@@ -55,38 +56,30 @@ export const WorldBossPage = () => {
       .limit(1)
       .single();
 
-    if (nextBoss) {
-      setBoss(nextBoss);
-    } else {
-      console.warn('Боссов не найдено');
-    }
+    if (nextBoss) setBoss(nextBoss);
+    else console.warn('Боссов не найдено');
 
     setLoading(false);
   };
 
-  const updateTimer = async () => {
-    if (!boss || !boss.end_time) {
+  const updateTimer = () => {
+    if (!boss || !serverNow) {
       setTimer('Ожидается следующий босс...');
       return;
     }
 
-    const { data: nowData, error: nowError } = await supabase.rpc('get_utc_now');
-    if (nowError || !nowData) {
-      console.error('Ошибка получения времени сервера:', nowError);
-      return;
-    }
-
-    const now = new Date(nowData + 'Z').getTime();
+    const now = new Date(serverNow.getTime() + 1000);
+    setServerNow(now);
     const end = new Date(boss.end_time).getTime();
-    const diff = end - now;
+    const diff = end - now.getTime();
 
     if (diff <= 0 || boss.current_hp <= 0 || boss.is_defeated) {
       setTimer('Босс повержен!');
     } else {
-      const hours = Math.floor(diff / 3600000);
-      const minutes = Math.floor((diff % 3600000) / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
-      setTimer(`${hours}ч ${minutes}м ${seconds}с`);
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimer(`${h}ч ${m}м ${s}с`);
     }
   };
 
@@ -97,10 +90,9 @@ export const WorldBossPage = () => {
   useEffect(() => {
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [boss]);
+  }, [boss, serverNow]);
 
   if (loading || !boss) return <div className="p-4 text-center">Загрузка...</div>;
-
   const isDead = boss.current_hp <= 0 || boss.is_defeated;
 
   return (
@@ -126,9 +118,7 @@ export const WorldBossPage = () => {
         HP: {Math.max(0, boss.current_hp)} / {boss.max_hp}
       </p>
 
-      <p className="text-center text-sm text-gray-600 mb-4">
-        {timer}
-      </p>
+      <p className="text-center text-sm text-gray-600 mb-4">{timer}</p>
 
       <div className="mt-6 text-center text-sm text-gray-400">
         Вознаграждение: {(boss.reward_pool || 0).toLocaleString()} токенов
