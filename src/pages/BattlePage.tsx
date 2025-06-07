@@ -1,11 +1,10 @@
-// src/pages/BattlePage.tsx
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { BattleMiniGame } from '../components/BattleMiniGame';
 import type { TelegramUser } from '../types';
 
 interface WorldBoss {
-  id: string;
+  id: number;
   name: string;
   max_hp: number;
   current_hp: number;
@@ -27,19 +26,32 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
   const [isHit, setIsHit] = useState(false);
 
   const fetchBoss = async () => {
+    const { data: nowData, error: nowError } = await supabase.rpc('get_utc_now');
+    if (nowError || !nowData) {
+      console.error('Ошибка получения времени:', nowError);
+      return;
+    }
+
+    const now = new Date(nowData + 'Z');
+
     const { data, error } = await supabase
       .from('world_bosses')
       .select('*')
+      .lte('start_at', now.toISOString())
+      .gt('end_time', now.toISOString())
+      .eq('is_defeated', false)
       .order('start_at', { ascending: false })
       .limit(1)
       .single();
 
     if (error) {
       console.error('Ошибка получения босса:', error);
-      return;
     }
 
-    if (data) setBoss(data);
+    if (data) {
+      setBoss(data);
+    }
+
     setLoading(false);
   };
 
@@ -48,12 +60,15 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
     const end = new Date(boss.end_time).getTime();
     const now = Date.now();
     const diff = end - now;
-    if (diff <= 0) return setTimer('Ожидается следующий босс...');
 
-    const hours = Math.floor(diff / 3600000);
-    const minutes = Math.floor((diff % 3600000) / 60000);
-    const seconds = Math.floor((diff % 60000) / 1000);
-    setTimer(`${hours}ч ${minutes}м ${seconds}с`);
+    if (diff <= 0) {
+      setTimer('Ожидается следующий босс...');
+    } else {
+      const hours = Math.floor(diff / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setTimer(`${hours}ч ${minutes}м ${seconds}с`);
+    }
   };
 
   useEffect(() => {
@@ -66,12 +81,16 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
   }, [boss]);
 
   const handleDamage = async (_damage: number) => {
+    if (!boss || boss.current_hp <= 0 || boss.is_defeated) return;
+
     setIsHit(true);
     setTimeout(() => setIsHit(false), 300);
-    await fetchBoss(); // обновить HP после удара
+    await fetchBoss(); // обновляем данные после атаки
   };
 
   if (loading || !boss) return <div className="p-4 text-center">Загрузка...</div>;
+
+  const isDead = boss.current_hp <= 0 || boss.is_defeated;
 
   return (
     <div className="p-4">
@@ -79,7 +98,7 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
 
       <div className="flex justify-center mb-4">
         <img
-          src={boss.is_defeated ? boss.image_defeated : boss.image_alive}
+          src={isDead ? boss.image_defeated : boss.image_alive}
           alt="Босс"
           className={`w-64 h-64 object-contain ${isHit ? 'animate-shake animate-flash' : ''}`}
         />
@@ -88,21 +107,21 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
       <div className="bg-gray-300 h-6 w-full rounded mb-2 overflow-hidden">
         <div
           className="bg-red-600 h-full transition-all duration-300"
-          style={{ width: `${(boss.current_hp / boss.max_hp) * 100}%` }}
+          style={{ width: `${Math.max(0, (boss.current_hp / boss.max_hp) * 100)}%` }}
         ></div>
       </div>
 
       <p className="text-center text-sm text-gray-600 mb-2">
-        HP: {boss.current_hp} / {boss.max_hp}
+        HP: {Math.max(0, boss.current_hp)} / {boss.max_hp}
       </p>
 
       <p className="text-center text-sm text-gray-600 mb-4">
-        {boss.is_defeated ? 'Босс повержен!' : `До конца битвы: ${timer}`}
+        {isDead ? 'Босс повержен!' : `До конца битвы: ${timer}`}
       </p>
 
-      {!boss.is_defeated && (
+      {!isDead && (
         <BattleMiniGame
-          bossId={boss.id}
+          bossId={String(boss.id)}
           user={user}
           onDamage={handleDamage}
         />
