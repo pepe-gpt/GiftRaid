@@ -1,10 +1,9 @@
-// src/components/BattleMiniGame.tsx
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { TelegramUser } from '../types';
 
 interface BattleMiniGameProps {
-  bossId: string; // ✅ UUID!
+  bossId: string;
   user: TelegramUser;
   onDamage: (damage: number) => void;
 }
@@ -29,11 +28,32 @@ const getRandomSpeedMultiplier = () => {
   return 0.9;
 };
 
+function getComboBonuses(combo: number) {
+  let flatBonus = 0;
+  let critChanceBonus = 0;
+  let critMultiplierBonus = 0;
+  let totalMultiplierBonus = 0;
+
+  if ([3, 7, 15, 30, 50].includes(combo)) {
+    flatBonus = 5;
+    critChanceBonus = 0.1;
+    critMultiplierBonus = 0.5;
+  }
+
+  if (combo > 3) {
+    const extraMultipliers = Math.max(0, combo - [3, 7, 15, 30, 50].filter(n => n <= combo).pop()!);
+    totalMultiplierBonus = extraMultipliers * 0.1;
+  }
+
+  return { flatBonus, critChanceBonus, critMultiplierBonus, totalMultiplierBonus };
+}
+
 export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, onDamage }) => {
   const [x, setX] = useState(0);
   const [zone, setZone] = useState<Zone>({ start: 40, end: 50 });
   const [result, setResult] = useState<string | null>(null);
   const [isActive, setIsActive] = useState(false);
+  const [combo, setCombo] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const directionRef = useRef(1);
   const speedRef = useRef(1.5);
@@ -76,24 +96,57 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
 
     const hit = x >= zone.start && x <= zone.end;
 
+    let currentCombo = 0;
+    const { data: existingCombo } = await supabase
+      .from('world_boss_combos')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('boss_id', bossId)
+      .single();
+
+    if (existingCombo) {
+      currentCombo = existingCombo.combo_count;
+    }
+
     if (!hit) {
       setResult('❌ Промах!');
+      await supabase
+        .from('world_boss_combos')
+        .upsert({ user_id: user.id, boss_id: bossId, combo_count: 0 });
+      setCombo(0);
       return;
     }
 
+    currentCombo += 1;
+    const { flatBonus, critChanceBonus, critMultiplierBonus, totalMultiplierBonus } = getComboBonuses(currentCombo);
+
     const sizeBonus = ((1.5 - (zone.end - zone.start) / 10) / 1.0) * 200;
     const speedBonus = ((speedRef.current / baseSpeed - 1.0) / 0.4) * 100;
-    let total = baseDamage * (1 + (sizeBonus + speedBonus) / 100);
 
-    if (Math.random() < 0.05) {
-      total *= 2.5;
-      setResult(`💥 Крит! Урон: ${Math.round(total)}`);
+    let total = baseDamage + flatBonus;
+    total *= 1 + (sizeBonus + speedBonus) / 100;
+    total *= 1 + totalMultiplierBonus;
+
+    const critChance = 0.05 + critChanceBonus;
+    const critMultiplier = 2.5 + critMultiplierBonus;
+
+    const isCrit = Math.random() < critChance;
+    if (isCrit) {
+      total *= critMultiplier;
+      setResult(`💥 Крит! Combo x${currentCombo} — Урон: ${Math.round(total)}`);
     } else {
-      setResult(`✅ Урон: ${Math.round(total)}`);
+      setResult(`✅ Combo x${currentCombo} — Урон: ${Math.round(total)}`);
     }
 
-    const roundedDamage = Math.round(total);
+    await supabase.from('world_boss_combos').upsert({
+      user_id: user.id,
+      boss_id: bossId,
+      combo_count: currentCombo,
+    });
 
+    setCombo(currentCombo);
+
+    const roundedDamage = Math.round(total);
     const { error } = await supabase.rpc('attack_world_boss', {
       boss_id_input: bossId,
       telegram_id_input: user.id,
@@ -118,12 +171,19 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
   return (
     <div className="flex flex-col items-center mt-6">
       {!isActive && (
-        <button
-          onClick={startGame}
-          className="bg-red-500 text-white px-6 py-3 rounded-lg text-lg shadow hover:bg-red-600 transition"
-        >
-          Атаковать
-        </button>
+        <>
+          <button
+            onClick={startGame}
+            className="bg-red-500 text-white px-6 py-3 rounded-lg text-lg shadow hover:bg-red-600 transition"
+          >
+            Атаковать
+          </button>
+          {combo > 2 && (
+            <div className="mt-2 text-sm text-yellow-600 font-semibold">
+              Комбо x{combo} активен!
+            </div>
+          )}
+        </>
       )}
 
       {isActive && (
