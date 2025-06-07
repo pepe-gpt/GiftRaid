@@ -138,11 +138,17 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
       setResult(`✅ Combo x${currentCombo} — Урон: ${Math.round(total)}`);
     }
 
-    await supabase.from('world_boss_combos').upsert({
-      user_id: user.id,
-      boss_id: bossId,
-      combo_count: currentCombo,
-    });
+    await supabase.from('world_boss_combos').upsert(
+  {
+    user_id: user.id,
+    boss_id: bossId,
+    combo_count: currentCombo,
+  },
+  {
+    onConflict: 'user_id,boss_id',
+  }
+);
+
 
     setCombo(currentCombo);
 
