@@ -1,56 +1,69 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
 interface WorldBoss {
-  id: number;
+  id: string;
   name: string;
+  day: number;
+  start_at: string;
+  image_alive: string;
+  image_defeat: string;
   max_hp: number;
   current_hp: number;
-  reward_pool: number;
-  alive_image_url: string;
-  defeated_image_url: string;
   is_defeated: boolean;
+  reward_pool: number;
   end_time: string;
 }
 
 export const WorldBossPage = () => {
   const [boss, setBoss] = useState<WorldBoss | null>(null);
   const [loading, setLoading] = useState(true);
-  const [timer, setTimer] = useState('');
+  const [timer, setTimer] = useState('—');
 
+  // Получаем UTC-время сервера
   const fetchBoss = async () => {
-    // Получаем текущее время с сервера Supabase
     const { data: nowData, error: nowError } = await supabase.rpc('get_utc_now');
     if (nowError || !nowData) {
-      console.error('Ошибка получения времени с сервера:', nowError);
+      console.error('Ошибка получения времени сервера:', nowError);
       return;
     }
-    const nowUtc = new Date(nowData);
 
-    // Получаем активного босса, чей старт уже наступил
+    const now = new Date(nowData);
+    const currentDay = now.getUTCDay(); // 0 (вс) до 6 (сб)
+
+    // Получаем последнего активного босса на сегодня
     const { data, error } = await supabase
       .from('world_bosses')
       .select('*')
-      .lte('start_at', nowUtc.toISOString())
+      .eq('day', currentDay)
+      .lte('start_at', now.toISOString())
       .order('start_at', { ascending: false })
       .limit(1)
       .single();
+
+    if (error) {
+      console.error('Ошибка получения босса:', error.message);
+    }
 
     if (data) setBoss(data);
     setLoading(false);
   };
 
+  // Таймер до следующего босса (или конца текущего)
   const updateTimer = () => {
-    if (!boss) return;
+    if (!boss || !boss.end_time) return setTimer('Ожидается следующий босс...');
     const end = new Date(boss.end_time).getTime();
     const now = Date.now();
     const diff = end - now;
-    if (diff <= 0) return setTimer('Ожидается следующий босс...');
 
-    const hours = Math.floor(diff / 3600000);
-    const minutes = Math.floor((diff % 3600000) / 60000);
-    const seconds = Math.floor((diff % 60000) / 1000);
-    setTimer(`${hours}ч ${minutes}м ${seconds}с`);
+    if (diff <= 0) {
+      setTimer('Ожидается следующий босс...');
+    } else {
+      const hours = Math.floor(diff / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setTimer(`${hours}ч ${minutes}м ${seconds}с`);
+    }
   };
 
   useEffect(() => {
@@ -58,8 +71,8 @@ export const WorldBossPage = () => {
   }, []);
 
   useEffect(() => {
-    const timerInterval = setInterval(updateTimer, 1000);
-    return () => clearInterval(timerInterval);
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
   }, [boss]);
 
   if (loading || !boss) return <div className="p-4 text-center">Загрузка...</div>;
@@ -70,7 +83,7 @@ export const WorldBossPage = () => {
 
       <div className="flex justify-center mb-4">
         <img
-          src={boss.is_defeated ? boss.defeated_image_url : boss.alive_image_url}
+          src={boss.is_defeated ? boss.image_defeat : boss.image_alive}
           alt="Босс"
           className="w-64 h-64 object-contain"
         />
@@ -88,14 +101,11 @@ export const WorldBossPage = () => {
       </p>
 
       <p className="text-center text-sm text-gray-600 mb-4">
-        До следующего босса: {timer}
+        {boss.is_defeated ? 'Босс повержен!' : `До конца битвы: ${timer}`}
       </p>
 
-      {/* Здесь будет кнопка атаки */}
-      {/* Здесь будет мини-лидерборд */}
-
       <div className="mt-6 text-center text-sm text-gray-400">
-        Вознаграждение: {boss.reward_pool.toLocaleString()} токенов
+        Вознаграждение: {boss.reward_pool?.toLocaleString() ?? 0} токенов
       </div>
     </div>
   );
