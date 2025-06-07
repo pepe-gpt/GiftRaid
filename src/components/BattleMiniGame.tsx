@@ -98,11 +98,11 @@ export const BattleMiniGame: React.FC<BattleMiniGameProps> = ({ bossId, user, on
 
     let currentCombo = 0;
     const { data: existingCombo } = await supabase
-      .from('world_boss_combos')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('boss_id', bossId)
-      .single();
+  .from('world_boss_combos')
+  .select('*')
+  .eq('user_id', user.id)
+  .eq('boss_id', bossId)
+  .maybeSingle(); // вместо single()
 
     if (existingCombo) {
       currentCombo = existingCombo.combo_count;
