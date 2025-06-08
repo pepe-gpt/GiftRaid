@@ -1,4 +1,6 @@
 // tailwind.config.js
+import plugin from 'tailwindcss/plugin'
+
 export default {
   content: [
     "./index.html",
@@ -23,8 +25,25 @@ export default {
           '0%, 100%': { filter: 'none' },
           '50%': { filter: 'brightness(0.5) saturate(2) hue-rotate(-30deg)' }
         }
+      },
+      userSelect: {
+        none: 'none',
+        text: 'text',
+        all: 'all',
+        auto: 'auto',
       }
     }
   },
-  plugins: [],
+  plugins: [
+    plugin(function ({ addUtilities }) {
+      addUtilities({
+        '.select-none': {
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
+          msUserSelect: 'none'
+        }
+      })
+    })
+  ]
 }
