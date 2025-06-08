@@ -1,3 +1,4 @@
+// src/pages/BattlePage.tsx
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { BattleMiniGame } from '../components/BattleMiniGame';
@@ -23,7 +24,6 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
   const [boss, setBoss] = useState<WorldBoss | null>(null);
   const [loading, setLoading] = useState(true);
   const [timer, setTimer] = useState('');
-  const [balance, setBalance] = useState<number | null>(null);
   const [isHit, setIsHit] = useState(false);
 
   const fetchBoss = async () => {
@@ -49,20 +49,6 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
     setLoading(false);
   };
 
-  const fetchBalance = async () => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('tokens')
-      .eq('telegram_id', user.id)
-      .single();
-
-    if (error) {
-      console.error('Ошибка получения баланса:', error);
-    }
-
-    if (data) setBalance(data.tokens);
-  };
-
   const updateTimer = async () => {
     if (!boss) return;
 
@@ -85,7 +71,6 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
 
   useEffect(() => {
     fetchBoss();
-    fetchBalance();
   }, []);
 
   useEffect(() => {
@@ -98,7 +83,6 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
     setIsHit(true);
     setTimeout(() => setIsHit(false), 300);
     await fetchBoss();
-    await fetchBalance();
   };
 
   if (loading || !boss) return <div className="p-4 text-center">Загрузка...</div>;
@@ -106,15 +90,7 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
 
   return (
     <div className="p-4">
-      <div className="flex justify-between items-center mb-2">
-        <h1 className="text-2xl font-bold">Мировой Босс</h1>
-        {balance !== null && (
-          <div className="flex items-center gap-1 text-yellow-600">
-            <img src="/coin.svg" alt="Coin" className="w-5 h-5" />
-            <span className="font-semibold">{balance}</span>
-          </div>
-        )}
-      </div>
+      <h1 className="text-2xl font-bold text-center mb-4">Мировой Босс</h1>
 
       <div className="flex justify-center mb-4">
         <img
