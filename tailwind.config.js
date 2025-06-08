@@ -1,5 +1,4 @@
-// tailwind.config.js
-import plugin from 'tailwindcss/plugin'
+import plugin from 'tailwindcss/plugin';
 
 export default {
   content: [
@@ -10,7 +9,7 @@ export default {
     extend: {
       animation: {
         shake: 'shake 0.3s ease',
-        flash: 'flash 0.3s ease'
+        flash: 'flash 0.3s ease',
       },
       keyframes: {
         shake: {
@@ -25,12 +24,6 @@ export default {
           '0%, 100%': { filter: 'none' },
           '50%': { filter: 'brightness(0.5) saturate(2) hue-rotate(-30deg)' }
         }
-      },
-      userSelect: {
-        none: 'none',
-        text: 'text',
-        all: 'all',
-        auto: 'auto',
       }
     }
   },
@@ -42,8 +35,15 @@ export default {
           WebkitUserSelect: 'none',
           MozUserSelect: 'none',
           msUserSelect: 'none'
+        },
+        '.pointer-events-none': {
+          pointerEvents: 'none'
+        },
+        '.no-drag': {
+          WebkitUserDrag: 'none',
+          userDrag: 'none'
         }
-      })
+      });
     })
   ]
 }
