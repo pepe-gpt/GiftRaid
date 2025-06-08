@@ -6,7 +6,7 @@ type Props = {
   onClaim: () => void;
 };
 
-export const RewardPopup: React.FC<Props> = ({ tokens, onClaim }) => {
+const RewardPopup: React.FC<Props> = ({ tokens, onClaim }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-2xl shadow-lg max-w-xs w-full text-center">
@@ -22,3 +22,6 @@ export const RewardPopup: React.FC<Props> = ({ tokens, onClaim }) => {
     </div>
   );
 };
+
+export default RewardPopup;
+

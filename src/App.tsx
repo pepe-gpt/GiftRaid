@@ -5,7 +5,9 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { BattlePage } from "./pages/BattlePage";
 import { WorldBossPage } from "./pages/WorldBossPage";
 import { BottomNav } from "./components/BottomNav";
-import { RewardPopup } from './components/RewardPopup';
+import RewardPopup from './components/RewardPopup'; 
+
+
 import { supabase } from "./lib/supabase";
 import type { Tab } from "./types";
 
