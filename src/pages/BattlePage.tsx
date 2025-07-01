@@ -1,4 +1,3 @@
-// src/pages/BattlePage.tsx
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { BattleMiniGame } from '../components/BattleMiniGame';
@@ -13,6 +12,7 @@ interface WorldBoss {
   image_alive: string;
   image_defeated: string;
   is_defeated: boolean;
+  start_at: string;
   end_time: string;
 }
 
@@ -27,9 +27,23 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
   const [isHit, setIsHit] = useState(false);
 
   const fetchBoss = async () => {
-    const { data: nowData } = await supabase.rpc('get_utc_now');
-    if (!nowData) return;
+    console.log('[⏳] fetchBoss called');
+
+    const { data: nowData, error: nowError } = await supabase.rpc('get_utc_now');
+    if (nowError) {
+      console.error('❌ get_utc_now error:', nowError);
+      setLoading(false);
+      return;
+    }
+
+    if (!nowData) {
+      console.warn('⚠️ nowData is null');
+      setLoading(false);
+      return;
+    }
+
     const now = new Date(nowData + 'Z');
+    console.log('[🕒] now =', now.toISOString());
 
     const { data, error } = await supabase
       .from('world_bosses')
@@ -42,10 +56,20 @@ export const BattlePage: React.FC<BattlePageProps> = ({ user }) => {
       .maybeSingle();
 
     if (error) {
-      console.error('Ошибка получения босса:', error);
+      console.error('❌ Ошибка получения босса:', error);
+      setLoading(false);
+      return;
     }
 
-    if (data) setBoss(data);
+    console.log('[📦] boss data =', data);
+
+    if (!data) {
+      console.warn('⚠️ Босс не найден, data is null');
+      setLoading(false);
+      return;
+    }
+
+    setBoss(data);
     setLoading(false);
   };
 

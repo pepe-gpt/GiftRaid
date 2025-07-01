@@ -1,7 +1,4 @@
-// BattleMiniGame.tsx с фиксами:
-// - Нет отображения Combo x1, x2
-// - Урон и крит рассчитываются строго по правилам
-// - Комбо отображается только с x3
+// BattleMiniGame.tsx 
 
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
