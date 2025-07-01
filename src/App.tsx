@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { saveTelegramUser } from "./lib/auth";
 import { ProfilePage } from "./pages/ProfilePage";
 import { BattlePage } from "./pages/BattlePage";
-import { WorldBossPage } from "./pages/WorldBossPage";
+import { RaidPage } from './pages/RaidPage';
 import { BottomNav } from "./components/BottomNav";
 import RewardPopup from "./components/RewardPopup";
 
@@ -120,7 +120,7 @@ function App() {
       case "quests":
         return <div className="text-center p-4">Задания (заглушка)</div>;
       case "raids":
-        return <WorldBossPage />;
+        return <RaidPage />;
       case "shop":
         return <div className="text-center p-4">Магазин (заглушка)</div>;
       default:
